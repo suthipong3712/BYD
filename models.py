@@ -82,6 +82,7 @@ class RepairOrder(Base):
     appointment_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     diagnosis_result: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     data_complete: Mapped[bool] = mapped_column(default=False)
+    job_card_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     vehicle: Mapped["Vehicle"] = relationship(back_populates="repair_orders")
     items: Mapped[list["RepairItem"]] = relationship(

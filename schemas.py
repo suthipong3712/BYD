@@ -54,6 +54,7 @@ class RepairOrderRead(BaseModel):
     appointment_date: Optional[date] = None
     diagnosis_result: Optional[str] = None
     data_complete: bool
+    job_card_number: Optional[str] = None
     items: list[RepairItemRead] = []
 
 
@@ -105,6 +106,11 @@ class StatusOptionUpdate(BaseModel):
 class RepairOrderUpdate(BaseModel):
     job_type: Optional[JobType] = None
     diagnosis_result: Optional[str] = None
+    job_card_number: Optional[str] = None
+
+
+class CloseOrderRequest(BaseModel):
+    job_card_number: Optional[str] = None
 
 
 class UserCreate(BaseModel):

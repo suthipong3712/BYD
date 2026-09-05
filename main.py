@@ -254,8 +254,11 @@ def update_technician(
 
 # --- อ่านได้ทุก role: รุ่นรถ / Admin เท่านั้น: เพิ่ม-แก้ ---
 
+
 @app.get("/vehicle-models", response_model=list[schemas.VehicleModelRead])
-def list_vehicle_models(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def list_vehicle_models(
+    db: Session = Depends(get_db), _: User = Depends(get_current_user)
+):
     return db.query(VehicleModel).all()
 
 
@@ -359,12 +362,20 @@ def create_repair_order(
 
 @app.post("/repair-orders/{order_id}/close", response_model=schemas.VehicleRead)
 def close_repair_order(
-    order_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles("sa"))
+    order_id: int,
+    payload: schemas.CloseOrderRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("sa")),
 ):
     order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
     if order is None:
         raise HTTPException(status_code=404, detail="Repair order not found")
 
+    job_card_number = payload.job_card_number or order.job_card_number
+    if not job_card_number:
+        raise HTTPException(status_code=400, detail="ต้องใส่เลขใบสั่งซ่อมก่อนปิดงาน")
+
+    order.job_card_number = job_card_number
     order.status = "closed"
     db.commit()
 

@@ -57,6 +57,7 @@ function App() {
   const [editForm, setEditForm] = useState({
     job_type: "warranty",
     diagnosis_result: "",
+    job_card_number: "",
   });
   const [addingOrder, setAddingOrder] = useState(false);
 
@@ -136,8 +137,20 @@ function App() {
       );
       if (!ok) return;
     }
+
+    let jobCardNumber = order.job_card_number;
+    if (!jobCardNumber) {
+      jobCardNumber = window.prompt("กรุณาใส่เลขใบสั่งซ่อม ก่อนปิดงาน");
+      if (!jobCardNumber || jobCardNumber.trim() === "") {
+        alert("ต้องใส่เลขใบสั่งซ่อมก่อนปิดงาน");
+        return;
+      }
+    }
+
     authFetch(`/repair-orders/${order.id}/close`, token, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_card_number: jobCardNumber }),
     }).then(refreshDetail);
   }
 
@@ -156,6 +169,7 @@ function App() {
     setEditForm({
       job_type: order.job_type,
       diagnosis_result: order.diagnosis_result ?? "",
+      job_card_number: order.job_card_number ?? "",
     });
   }
 
@@ -329,9 +343,40 @@ function App() {
               <p className="detail-empty">เลือกรถจากรายการทางซ้ายก่อน</p>
             )}
 
+            {detail !== null && (
+              <div className="info-grid">
+                <div className="info-box">
+                  <h3>ข้อมูลรถ</h3>
+                  <div className="info-row">
+                    <span>ทะเบียน</span>
+                    <span>{detail.license_plate}</span>
+                  </div>
+                  <div className="info-row">
+                    <span>รุ่น</span>
+                    <span>{detail.model}</span>
+                  </div>
+                  <div className="info-row">
+                    <span>VIN</span>
+                    <span className="part-number">{detail.vin}</span>
+                  </div>
+                </div>
+                <div className="info-box">
+                  <h3>ข้อมูลลูกค้า</h3>
+                  <div className="info-row">
+                    <span>ชื่อ</span>
+                    <span>{detail.customer_name}</span>
+                  </div>
+                  <div className="info-row">
+                    <span>เบอร์โทร</span>
+                    <span>{detail.phone ?? "-"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {detail !== null && canManage && !addingOrder && (
               <button
-                className="btn-close-order"
+                className="btn-add-order"
                 onClick={() => setAddingOrder(true)}
               >
                 + เพิ่มงานซ่อม
@@ -359,7 +404,9 @@ function App() {
                     <div className="repair-order__header">
                       <div style={{ flex: 1 }}>
                         <h2 className="repair-order__title">
-                          {detail.license_plate} — {detail.model}
+                          ใบสั่งซ่อม #{order.id}
+                          {order.job_card_number &&
+                            ` · เลขใบสั่งซ่อม ${order.job_card_number}`}
                         </h2>
 
                         {!isEditing && (
@@ -395,6 +442,16 @@ function App() {
                                 setEditForm({
                                   ...editForm,
                                   diagnosis_result: e.target.value,
+                                })
+                              }
+                            />
+                            <input
+                              placeholder="เลขใบสั่งซ่อม"
+                              value={editForm.job_card_number}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
+                                  job_card_number: e.target.value,
                                 })
                               }
                             />
