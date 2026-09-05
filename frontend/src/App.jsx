@@ -1,0 +1,516 @@
+import { useEffect, useState } from "react";
+import "./App.css";
+import AdminPanel from "./AdminPanel";
+import IntakeForm from "./IntakeForm";
+import LoginPage from "./LoginPage";
+import NewOrderForm from "./NewOrderForm";
+import { authFetch } from "./api";
+
+const ORDER_STATUS_LABEL = {
+  open: "งานเปิดอยู่",
+  closed: "ปิดงานแล้ว",
+  cancelled: "ยกเลิกแล้ว",
+};
+
+const ORDER_STATUS_COLOR = {
+  open: "red",
+  closed: "green",
+  cancelled: "muted",
+};
+
+function getVehicleStatus(vehicle) {
+  const openOrders = vehicle.repair_orders.filter((o) => o.status === "open");
+  const items = openOrders.flatMap((o) => o.items);
+  if (items.length === 0) return { color: "muted", label: "ไม่มีงานค้าง" };
+
+  const allDone = items.every((i) => i.job_status === "done");
+  if (allDone) return { color: "green", label: "พร้อมส่งมอบ" };
+
+  const hasNotOrdered = items.some(
+    (i) => i.parts_request?.order_status === "not_ordered",
+  );
+  if (hasNotOrdered) return { color: "red", label: "รออะไหล่" };
+
+  return { color: "amber", label: "กำลังดำเนินการ" };
+}
+
+function Badge({ color, children }) {
+  return <span className={`badge badge--${color}`}>{children}</span>;
+}
+
+function App() {
+  const [auth, setAuth] = useState(() => {
+    const token = localStorage.getItem("gms_token");
+    const userRaw = localStorage.getItem("gms_user");
+    if (!token || !userRaw) return null;
+    return { token, user: JSON.parse(userRaw) };
+  });
+
+  const [view, setView] = useState("dashboard");
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [statusOptions, setStatusOptions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [listTab, setListTab] = useState("pending");
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    job_type: "warranty",
+    diagnosis_result: "",
+  });
+  const [addingOrder, setAddingOrder] = useState(false);
+
+  const token = auth?.token;
+  const role = auth?.user?.role;
+  const canManage = role === "admin" || role === "sa";
+
+  function handleLogin(data) {
+    localStorage.setItem("gms_token", data.token);
+    localStorage.setItem("gms_user", JSON.stringify(data.user));
+    setAuth(data);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("gms_token");
+    localStorage.removeItem("gms_user");
+    setAuth(null);
+    setView("dashboard");
+    setSelectedId(null);
+    setDetail(null);
+  }
+
+  useEffect(() => {
+    if (!auth) return;
+    authFetch("/vehicles", token)
+      .then((res) => res.json())
+      .then((data) => setVehicles(data));
+
+    authFetch("/status-options", token)
+      .then((res) => res.json())
+      .then((data) => setStatusOptions(data));
+  }, [view, auth]);
+
+  useEffect(() => {
+    if (!auth || selectedId === null) return;
+    authFetch(`/vehicles/${selectedId}`, token)
+      .then((res) => res.json())
+      .then((data) => setDetail(data));
+  }, [selectedId, auth]);
+
+  function refreshVehicleList() {
+    authFetch("/vehicles", token)
+      .then((res) => res.json())
+      .then((data) => setVehicles(data));
+  }
+
+  function refreshDetail() {
+    authFetch(`/vehicles/${selectedId}`, token)
+      .then((res) => res.json())
+      .then((data) => {
+        setDetail(data);
+        refreshVehicleList();
+      });
+  }
+
+  function updateJobStatus(itemId, jobStatus) {
+    authFetch(`/repair-items/${itemId}/status`, token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_status: jobStatus }),
+    }).then(refreshDetail);
+  }
+
+  function updatePartsStatus(itemId, orderStatus) {
+    authFetch(`/repair-items/${itemId}/parts-status`, token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_status: orderStatus }),
+    }).then(refreshDetail);
+  }
+
+  function closeOrder(order) {
+    const notDone = order.items.filter((i) => i.job_status !== "done");
+    if (notDone.length > 0) {
+      const ok = window.confirm(
+        `ยังมี ${notDone.length} รายการที่ยังไม่เสร็จ ต้องการปิดงานนี้เลยไหม?`,
+      );
+      if (!ok) return;
+    }
+    authFetch(`/repair-orders/${order.id}/close`, token, {
+      method: "POST",
+    }).then(refreshDetail);
+  }
+
+  function cancelOrder(order) {
+    const ok = window.confirm(
+      "ต้องการยกเลิกใบสั่งซ่อมนี้ใช่ไหม? (ประวัติจะยังเก็บไว้ แต่จะไม่นับเป็นงานที่ทำอยู่)",
+    );
+    if (!ok) return;
+    authFetch(`/repair-orders/${order.id}/cancel`, token, {
+      method: "POST",
+    }).then(refreshDetail);
+  }
+
+  function startEdit(order) {
+    setEditingOrderId(order.id);
+    setEditForm({
+      job_type: order.job_type,
+      diagnosis_result: order.diagnosis_result ?? "",
+    });
+  }
+
+  function saveEdit(order) {
+    authFetch(`/repair-orders/${order.id}`, token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    }).then(() => {
+      setEditingOrderId(null);
+      refreshDetail();
+    });
+  }
+
+  function optionsFor(category) {
+    return statusOptions
+      .filter((o) => o.category === category)
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  function optionMeta(category, key) {
+    const found = statusOptions.find(
+      (o) => o.category === category && o.key === key,
+    );
+    return found ?? { label: key, color: "muted" };
+  }
+
+  if (!auth) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  const canEditJob = role === "admin" || role === "technician";
+  const canEditParts = role === "admin" || role === "parts";
+
+  const isVehiclePending = (v) =>
+    v.repair_orders.some((o) => o.status === "open");
+
+  const filteredVehicles = vehicles
+    .filter((v) =>
+      listTab === "pending" ? isVehiclePending(v) : !isVehiclePending(v),
+    )
+    .filter((v) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (q === "") return true;
+      return (
+        v.license_plate.toLowerCase().includes(q) ||
+        v.customer_name.toLowerCase().includes(q) ||
+        v.vin.toLowerCase().includes(q)
+      );
+    });
+
+  return (
+    <div>
+      <header className="app-header">
+        <div className="app-header__brand">
+          <div className="app-header__logo">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <h1>BYD Garage</h1>
+            <span>ระบบบริหารจัดการงานซ่อม</span>
+          </div>
+        </div>
+        <div className="app-header__nav">
+          <button
+            className={`app-header__nav-btn ${view === "dashboard" ? "active" : ""}`}
+            onClick={() => setView("dashboard")}
+          >
+            รายการรถ
+          </button>
+          {(role === "admin" || role === "sa") && (
+            <button
+              className={`app-header__nav-btn ${view === "intake" ? "active" : ""}`}
+              onClick={() => setView("intake")}
+            >
+              + รับรถใหม่
+            </button>
+          )}
+          {role === "admin" && (
+            <button
+              className={`app-header__nav-btn ${view === "admin" ? "active" : ""}`}
+              onClick={() => setView("admin")}
+            >
+              ⚙ Admin
+            </button>
+          )}
+        </div>
+        <div className="app-header__user">
+          <span>
+            {auth.user.username} · {auth.user.role}
+          </span>
+          <button className="app-header__logout" onClick={handleLogout}>
+            ออกจากระบบ
+          </button>
+        </div>
+      </header>
+
+      {view === "admin" && role === "admin" && <AdminPanel token={token} />}
+      {view === "intake" && (role === "admin" || role === "sa") && (
+        <IntakeForm
+          token={token}
+          onCreated={() => {
+            refreshVehicleList();
+            setView("dashboard");
+          }}
+        />
+      )}
+      {view === "dashboard" && (
+        <div className="layout">
+          <div className="sidebar">
+            <input
+              className="sidebar-search"
+              placeholder="ค้นหา ทะเบียน / ชื่อลูกค้า / VIN"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+
+            <div className="sidebar-tabs">
+              <button
+                className={`sidebar-tab ${listTab === "pending" ? "active" : ""}`}
+                onClick={() => setListTab("pending")}
+              >
+                งานที่ยังค้าง
+              </button>
+              <button
+                className={`sidebar-tab ${listTab === "done" ? "active" : ""}`}
+                onClick={() => setListTab("done")}
+              >
+                เสร็จสิ้นแล้ว
+              </button>
+            </div>
+
+            {filteredVehicles.length === 0 && (
+              <p className="sidebar-empty">ไม่พบรถที่ตรงกับเงื่อนไข</p>
+            )}
+
+            {filteredVehicles.map((v) => {
+              const status = getVehicleStatus(v);
+              return (
+                <button
+                  key={v.id}
+                  className={`vehicle-card ${selectedId === v.id ? "selected" : ""}`}
+                  onClick={() => {
+                    const nextId = selectedId === v.id ? null : v.id;
+                    setSelectedId(nextId);
+                    if (nextId === null) setDetail(null);
+                  }}
+                >
+                  <div>
+                    <div className="vehicle-card__plate">{v.license_plate}</div>
+                    <div className="vehicle-card__meta">
+                      {v.model} · {v.customer_name}
+                    </div>
+                  </div>
+                  <Badge color={status.color}>{status.label}</Badge>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="detail-panel">
+            {detail === null && (
+              <p className="detail-empty">เลือกรถจากรายการทางซ้ายก่อน</p>
+            )}
+
+            {detail !== null && canManage && !addingOrder && (
+              <button
+                className="btn-close-order"
+                onClick={() => setAddingOrder(true)}
+              >
+                + เพิ่มงานซ่อม
+              </button>
+            )}
+
+            {detail !== null && addingOrder && (
+              <NewOrderForm
+                token={token}
+                vehicleId={selectedId}
+                onCreated={() => {
+                  setAddingOrder(false);
+                  refreshDetail();
+                }}
+                onCancel={() => setAddingOrder(false)}
+              />
+            )}
+
+            {detail !== null &&
+              detail.repair_orders.map((order) => {
+                const isOpen = order.status === "open";
+                const isEditing = editingOrderId === order.id;
+                return (
+                  <div className="repair-order" key={order.id}>
+                    <div className="repair-order__header">
+                      <div style={{ flex: 1 }}>
+                        <h2 className="repair-order__title">
+                          {detail.license_plate} — {detail.model}
+                        </h2>
+
+                        {!isEditing && (
+                          <div className="repair-order__meta">
+                            {order.job_type === "warranty"
+                              ? "Warranty"
+                              : "Customer pay"}
+                            {" · "}
+                            {order.diagnosis_result ?? "ยังไม่มีผลวินิจฉัย"}
+                            {" · "}
+                            เปิดงานวันที่ {order.open_date}
+                          </div>
+                        )}
+
+                        {isEditing && (
+                          <div className="edit-order-form">
+                            <select
+                              value={editForm.job_type}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
+                                  job_type: e.target.value,
+                                })
+                              }
+                            >
+                              <option value="warranty">Warranty</option>
+                              <option value="customer_pay">Customer pay</option>
+                            </select>
+                            <input
+                              placeholder="ผลการวินิจฉัย"
+                              value={editForm.diagnosis_result}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
+                                  diagnosis_result: e.target.value,
+                                })
+                              }
+                            />
+                            <button onClick={() => saveEdit(order)}>
+                              บันทึก
+                            </button>
+                            <button onClick={() => setEditingOrderId(null)}>
+                              ยกเลิก
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="repair-order__actions">
+                        <Badge color={ORDER_STATUS_COLOR[order.status]}>
+                          {ORDER_STATUS_LABEL[order.status]}
+                        </Badge>
+                        {isOpen && canManage && !isEditing && (
+                          <>
+                            <button
+                              className="btn-close-order"
+                              onClick={() => startEdit(order)}
+                            >
+                              แก้ไข
+                            </button>
+                            <button
+                              className="btn-close-order"
+                              onClick={() => closeOrder(order)}
+                            >
+                              ปิดงาน
+                            </button>
+                            <button
+                              className="btn-cancel-order"
+                              onClick={() => cancelOrder(order)}
+                            >
+                              ยกเลิกงาน
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <table className="repair-table">
+                      <thead>
+                        <tr>
+                          <th>รายการซ่อม</th>
+                          <th>อะไหล่</th>
+                          <th>สถานะอะไหล่</th>
+                          <th>ช่าง</th>
+                          <th>สถานะงาน</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.items.map((item) => {
+                          const partKey =
+                            item.parts_request?.order_status ?? "not_ordered";
+                          const partMeta = optionMeta("parts_status", partKey);
+                          const jobMeta = optionMeta(
+                            "job_status",
+                            item.job_status,
+                          );
+
+                          return (
+                            <tr key={item.id}>
+                              <td>{item.description}</td>
+                              <td className="part-number">
+                                {item.part_number ?? "-"}
+                              </td>
+                              <td>
+                                <select
+                                  className={`status-select status-select--${partMeta.color}`}
+                                  value={partKey}
+                                  disabled={!isOpen || !canEditParts}
+                                  onChange={(e) =>
+                                    updatePartsStatus(item.id, e.target.value)
+                                  }
+                                >
+                                  {optionsFor("parts_status").map((opt) => (
+                                    <option key={opt.key} value={opt.key}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                {item.technician ? item.technician.name : "-"}
+                              </td>
+                              <td>
+                                <select
+                                  className={`status-select status-select--${jobMeta.color}`}
+                                  value={item.job_status}
+                                  disabled={!isOpen || !canEditJob}
+                                  onChange={(e) =>
+                                    updateJobStatus(item.id, e.target.value)
+                                  }
+                                >
+                                  {optionsFor("job_status").map((opt) => (
+                                    <option key={opt.key} value={opt.key}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
