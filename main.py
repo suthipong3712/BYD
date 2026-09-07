@@ -1,6 +1,8 @@
+import os
+import uuid
 from datetime import date
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -26,6 +28,11 @@ from models import (
 )
 
 app = FastAPI(title="BYD Garage Management System")
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+ALLOWED_PHOTO_KINDS = {"car", "vin"}
 
 
 # --- Authentication ---
@@ -100,6 +107,66 @@ def update_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.delete("/users/{user_id}")
+def delete_user(
+    user_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role == "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=400, detail="ต้องมีบัญชี admin เหลืออย่างน้อย 1 คนเสมอ"
+            )
+
+    db.delete(user)
+    db.commit()
+    return {"ok": True}
+
+
+# --- อ่านได้ทุก role: รุ่นรถ / Admin เท่านั้น: เพิ่ม-แก้ ---
+
+
+@app.get("/vehicle-models", response_model=list[schemas.VehicleModelRead])
+def list_vehicle_models(
+    db: Session = Depends(get_db), _: User = Depends(get_current_user)
+):
+    return db.query(VehicleModel).all()
+
+
+@app.post("/vehicle-models", response_model=schemas.VehicleModelRead)
+def create_vehicle_model(
+    payload: schemas.VehicleModelCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles()),
+):
+    model = VehicleModel(name=payload.name, active=True)
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+    return model
+
+
+@app.patch("/vehicle-models/{model_id}", response_model=schemas.VehicleModelRead)
+def update_vehicle_model(
+    model_id: int,
+    payload: schemas.VehicleModelUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles()),
+):
+    model = db.query(VehicleModel).filter(VehicleModel.id == model_id).first()
+    if model is None:
+        raise HTTPException(status_code=404, detail="Vehicle model not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(model, field, value)
+    db.commit()
+    db.refresh(model)
+    return model
 
 
 # --- อ่านข้อมูล: ใครก็ได้ที่ login แล้ว ---
@@ -252,47 +319,27 @@ def update_technician(
     return technician
 
 
-# --- อ่านได้ทุก role: รุ่นรถ / Admin เท่านั้น: เพิ่ม-แก้ ---
-
-
-@app.get("/vehicle-models", response_model=list[schemas.VehicleModelRead])
-def list_vehicle_models(
-    db: Session = Depends(get_db), _: User = Depends(get_current_user)
+@app.delete("/technicians/{technician_id}")
+def delete_technician(
+    technician_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
 ):
-    return db.query(VehicleModel).all()
+    technician = db.query(Technician).filter(Technician.id == technician_id).first()
+    if technician is None:
+        raise HTTPException(status_code=404, detail="Technician not found")
 
+    used_count = db.query(RepairItem).filter(RepairItem.technician_id == technician_id).count()
+    if used_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ช่างคนนี้มีประวัติงานผูกอยู่ {used_count} รายการ ลบไม่ได้ กรุณาปิดใช้งานแทน",
+        )
 
-@app.post("/vehicle-models", response_model=schemas.VehicleModelRead)
-def create_vehicle_model(
-    payload: schemas.VehicleModelCreate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
-):
-    model = VehicleModel(name=payload.name, active=True)
-    db.add(model)
+    db.delete(technician)
     db.commit()
-    db.refresh(model)
-    return model
+    return {"ok": True}
 
 
-@app.patch("/vehicle-models/{model_id}", response_model=schemas.VehicleModelRead)
-def update_vehicle_model(
-    model_id: int,
-    payload: schemas.VehicleModelUpdate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
-):
-    model = db.query(VehicleModel).filter(VehicleModel.id == model_id).first()
-    if model is None:
-        raise HTTPException(status_code=404, detail="Vehicle model not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(model, field, value)
-    db.commit()
-    db.refresh(model)
-    return model
-
-
-# --- Admin เท่านั้น: รับรถเข้าซ่อม ---
+# --- Admin + SA: รับรถเข้าซ่อม ---
 
 
 @app.post("/intake", response_model=schemas.VehicleRead)
@@ -318,6 +365,7 @@ def create_intake(
         status="open",
         open_date=date.today(),
         diagnosis_result=payload.order.diagnosis_result,
+        mileage=payload.order.mileage,
         data_complete=False,
     )
     for item_data in payload.order.items:
@@ -346,6 +394,7 @@ def create_repair_order(
         status="open",
         open_date=date.today(),
         diagnosis_result=payload.diagnosis_result,
+        mileage=payload.mileage,
         data_complete=False,
     )
     for item_data in payload.items:
@@ -357,7 +406,7 @@ def create_repair_order(
     return vehicle
 
 
-# --- Admin + SA: ปิดงาน / ยกเลิกงาน / แก้ไขงาน ---
+# --- Admin + SA: ปิดงาน / ยกเลิกงาน / แก้ไขงาน / อัปโหลดรูป ---
 
 
 @app.post("/repair-orders/{order_id}/close", response_model=schemas.VehicleRead)
@@ -415,6 +464,41 @@ def update_repair_order(
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(order, field, value)
+
+    db.commit()
+    vehicle = order.vehicle
+    db.refresh(vehicle)
+    return vehicle
+
+
+@app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
+async def upload_order_photo(
+    order_id: int,
+    kind: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("sa")),
+):
+    if kind not in ALLOWED_PHOTO_KINDS:
+        raise HTTPException(
+            status_code=400, detail="ประเภทรูปไม่ถูกต้อง (ใช้ได้แค่ car หรือ vin)"
+        )
+
+    order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Repair order not found")
+
+    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
+    filename = f"order{order_id}_{kind}_{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join("uploads", filename)
+    with open(filepath, "wb") as out_file:
+        out_file.write(await file.read())
+
+    photo_url = f"/uploads/{filename}"
+    if kind == "car":
+        order.car_photo_path = photo_url
+    else:
+        order.vin_photo_path = photo_url
 
     db.commit()
     vehicle = order.vehicle

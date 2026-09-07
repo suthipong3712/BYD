@@ -22,6 +22,7 @@ function IntakeForm({ token, onCreated }) {
   const [order, setOrder] = useState({
     job_type: "warranty",
     diagnosis_result: "",
+    mileage: "",
   });
   const [items, setItems] = useState([emptyItem()]);
   const [technicians, setTechnicians] = useState([]);
@@ -161,6 +162,12 @@ function IntakeForm({ token, onCreated }) {
             onChange={(e) =>
               setOrder({ ...order, diagnosis_result: e.target.value })
             }
+          />
+          <input
+            type="number"
+            placeholder="เลขไมล์ (กม.)"
+            value={order.mileage}
+            onChange={(e) => setOrder({ ...order, mileage: e.target.value })}
           />
         </div>
       </div>

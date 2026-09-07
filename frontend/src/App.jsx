@@ -60,6 +60,7 @@ function App() {
     job_card_number: "",
   });
   const [addingOrder, setAddingOrder] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   const token = auth?.token;
   const role = auth?.user?.role;
@@ -171,6 +172,15 @@ function App() {
       diagnosis_result: order.diagnosis_result ?? "",
       job_card_number: order.job_card_number ?? "",
     });
+  }
+
+  function uploadPhoto(orderId, kind, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    authFetch(`/repair-orders/${orderId}/photo/${kind}`, token, {
+      method: "POST",
+      body: formData,
+    }).then(refreshDetail);
   }
 
   function saveEdit(order) {
@@ -418,9 +428,30 @@ function App() {
                             {order.diagnosis_result ?? "ยังไม่มีผลวินิจฉัย"}
                             {" · "}
                             เปิดงานวันที่ {order.open_date}
+                            {order.mileage != null &&
+                              ` · ${order.mileage.toLocaleString()} กม.`}
                           </div>
                         )}
-
+                        <div className="order-photos">
+                          <PhotoSlot
+                            label="รูปรถ"
+                            src={order.car_photo_path}
+                            canUpload={canManage}
+                            onSelect={(file) =>
+                              uploadPhoto(order.id, "car", file)
+                            }
+                            onView={setLightboxSrc}
+                          />
+                          <PhotoSlot
+                            label="รูปหน้า VIN"
+                            src={order.vin_photo_path}
+                            canUpload={canManage}
+                            onSelect={(file) =>
+                              uploadPhoto(order.id, "vin", file)
+                            }
+                            onView={setLightboxSrc}
+                          />
+                        </div>
                         {isEditing && (
                           <div className="edit-order-form">
                             <select
@@ -566,6 +597,52 @@ function App() {
           </div>
         </div>
       )}
+
+      {lightboxSrc !== null && (
+        <div className="lightbox" onClick={() => setLightboxSrc(null)}>
+          <img src={lightboxSrc} alt="" />
+          <button
+            className="lightbox__close"
+            onClick={() => setLightboxSrc(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PhotoSlot({ label, src, canUpload, onSelect, onView }) {
+  return (
+    <div className="photo-slot">
+      {src ? (
+        <img
+          src={src}
+          alt={label}
+          onClick={() => onView(src)}
+          className="photo-slot__img"
+        />
+      ) : (
+        <div className="photo-slot__placeholder">ยังไม่มีรูป</div>
+      )}
+      {canUpload && (
+        <label className="photo-slot__label">
+          {src ? "เปลี่ยนรูป" : `+ ${label}`}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) onSelect(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
+      {!canUpload && <div className="photo-slot__caption">{label}</div>}
     </div>
   );
 }

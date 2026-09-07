@@ -19,6 +19,12 @@ function AdminPanel({ token }) {
   const [newTechName, setNewTechName] = useState('')
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'technician' })
   const [newModelName, setNewModelName] = useState('')
+  const [toast, setToast] = useState(null)
+
+  function showToast(message) {
+    setToast(message)
+    setTimeout(() => setToast(null), 2000)
+  }
 
   function loadOptions() {
     authFetch('/status-options', token)
@@ -65,7 +71,10 @@ function AdminPanel({ token }) {
         color: option.color,
         sort_order: Number(option.sort_order),
       }),
-    }).then(loadOptions)
+    }).then(() => {
+      loadOptions()
+      showToast('บันทึกแล้ว')
+    })
   }
 
   function addOption(e) {
@@ -77,6 +86,7 @@ function AdminPanel({ token }) {
     }).then(() => {
       setNewOption({ category: 'job_status', key: '', label: '', color: 'muted', sort_order: 0 })
       loadOptions()
+      showToast('เพิ่มตัวเลือกแล้ว')
     })
   }
 
@@ -90,7 +100,25 @@ function AdminPanel({ token }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: tech.name, active: tech.active }),
-    }).then(loadTechnicians)
+    }).then(() => {
+      loadTechnicians()
+      showToast('บันทึกแล้ว')
+    })
+  }
+
+  function deleteTechnician(tech) {
+    const ok = window.confirm(`ต้องการลบช่าง "${tech.name}" ใช่ไหม?`)
+    if (!ok) return
+    authFetch(`/technicians/${tech.id}`, token, { method: 'DELETE' })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.detail || 'ลบไม่สำเร็จ')
+        }
+        loadTechnicians()
+        showToast('ลบแล้ว')
+      })
+      .catch((err) => alert(err.message))
   }
 
   function addTechnician(e) {
@@ -103,6 +131,7 @@ function AdminPanel({ token }) {
     }).then(() => {
       setNewTechName('')
       loadTechnicians()
+      showToast('เพิ่มช่างแล้ว')
     })
   }
 
@@ -112,7 +141,7 @@ function AdminPanel({ token }) {
   }
 
   function saveUser(user, newPassword) {
-    const body = { role: user.role, active: user.active }
+    const body = { role: user.role }
     if (newPassword && newPassword.trim() !== '') {
       body.password = newPassword
     }
@@ -120,7 +149,25 @@ function AdminPanel({ token }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).then(loadUsers)
+    }).then(() => {
+      loadUsers()
+      showToast('บันทึกแล้ว')
+    })
+  }
+
+  function deleteUser(user) {
+    const ok = window.confirm(`ต้องการลบผู้ใช้ "${user.username}" ใช่ไหม?`)
+    if (!ok) return
+    authFetch(`/users/${user.id}`, token, { method: 'DELETE' })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.detail || 'ลบไม่สำเร็จ')
+        }
+        loadUsers()
+        showToast('ลบแล้ว')
+      })
+      .catch((err) => alert(err.message))
   }
 
   function addUser(e) {
@@ -137,6 +184,7 @@ function AdminPanel({ token }) {
         }
         setNewUser({ username: '', password: '', role: 'technician' })
         loadUsers()
+        showToast('เพิ่มผู้ใช้แล้ว')
       })
       .catch((err) => alert(err.message))
   }
@@ -151,7 +199,10 @@ function AdminPanel({ token }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: model.name, active: model.active }),
-    }).then(loadVehicleModels)
+    }).then(() => {
+      loadVehicleModels()
+      showToast('บันทึกแล้ว')
+    })
   }
 
   function addModel(e) {
@@ -164,11 +215,14 @@ function AdminPanel({ token }) {
     }).then(() => {
       setNewModelName('')
       loadVehicleModels()
+      showToast('เพิ่มรุ่นแล้ว')
     })
   }
 
   return (
     <div className="admin-panel">
+      {toast && <div className="admin-toast">✓ {toast}</div>}
+
       <div className="admin-section">
         <h2>ผู้ใช้งานระบบ</h2>
         <table className="admin-table">
@@ -176,14 +230,19 @@ function AdminPanel({ token }) {
             <tr>
               <th>Username</th>
               <th>สิทธิ์ (Role)</th>
-              <th>สถานะ</th>
               <th>รีเซ็ตรหัสผ่าน</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <UserRow key={u.id} user={u} onChange={updateLocalUser} onSave={saveUser} />
+              <UserRow
+                key={u.id}
+                user={u}
+                onChange={updateLocalUser}
+                onSave={saveUser}
+                onDelete={deleteUser}
+              />
             ))}
           </tbody>
         </table>
@@ -268,6 +327,7 @@ function AdminPanel({ token }) {
               <th>ชื่อ</th>
               <th>สถานะ</th>
               <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -291,10 +351,14 @@ function AdminPanel({ token }) {
                 <td>
                   <button onClick={() => saveTechnician(t)}>บันทึก</button>
                 </td>
+                <td>
+                  <button onClick={() => deleteTechnician(t)}>ลบ</button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="intake-hint">ลบได้เฉพาะช่างที่ยังไม่เคยมีประวัติงานผูกอยู่ — ถ้าเคยทำงานแล้วให้ "ปิดใช้งาน" แทน</p>
 
         <form className="admin-form" onSubmit={addTechnician}>
           <input
@@ -403,7 +467,7 @@ function AdminPanel({ token }) {
   )
 }
 
-function UserRow({ user, onChange, onSave }) {
+function UserRow({ user, onChange, onSave, onDelete }) {
   const [newPassword, setNewPassword] = useState('')
 
   return (
@@ -417,15 +481,6 @@ function UserRow({ user, onChange, onSave }) {
         </select>
       </td>
       <td>
-        <select
-          value={user.active ? 'active' : 'inactive'}
-          onChange={(e) => onChange(user.id, 'active', e.target.value === 'active')}
-        >
-          <option value="active">ใช้งานอยู่</option>
-          <option value="inactive">ปิดใช้งาน</option>
-        </select>
-      </td>
-      <td>
         <input
           type="password"
           placeholder="เว้นว่างถ้าไม่เปลี่ยน"
@@ -433,7 +488,7 @@ function UserRow({ user, onChange, onSave }) {
           onChange={(e) => setNewPassword(e.target.value)}
         />
       </td>
-      <td>
+      <td style={{ display: 'flex', gap: '0.4rem' }}>
         <button
           onClick={() => {
             onSave(user, newPassword)
@@ -442,6 +497,7 @@ function UserRow({ user, onChange, onSave }) {
         >
           บันทึก
         </button>
+        <button onClick={() => onDelete(user)}>ลบ</button>
       </td>
     </tr>
   )

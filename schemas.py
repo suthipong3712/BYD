@@ -55,6 +55,9 @@ class RepairOrderRead(BaseModel):
     diagnosis_result: Optional[str] = None
     data_complete: bool
     job_card_number: Optional[str] = None
+    mileage: Optional[int] = None
+    car_photo_path: Optional[str] = None
+    vin_photo_path: Optional[str] = None
     items: list[RepairItemRead] = []
 
 
@@ -107,6 +110,7 @@ class RepairOrderUpdate(BaseModel):
     job_type: Optional[JobType] = None
     diagnosis_result: Optional[str] = None
     job_card_number: Optional[str] = None
+    mileage: Optional[int] = None
 
 
 class CloseOrderRequest(BaseModel):
@@ -162,6 +166,7 @@ class RepairOrderCreate(BaseModel):
     job_type: JobType
     appointment_date: Optional[date] = None
     diagnosis_result: Optional[str] = None
+    mileage: Optional[int] = None
     items: list[RepairItemCreate] = []
 
 

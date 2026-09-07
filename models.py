@@ -83,7 +83,9 @@ class RepairOrder(Base):
     diagnosis_result: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     data_complete: Mapped[bool] = mapped_column(default=False)
     job_card_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
+    mileage: Mapped[Optional[int]] = mapped_column(nullable=True)
+    car_photo_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    vin_photo_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     vehicle: Mapped["Vehicle"] = relationship(back_populates="repair_orders")
     items: Mapped[list["RepairItem"]] = relationship(
         back_populates="repair_order", cascade="all, delete-orphan"
