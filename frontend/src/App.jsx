@@ -63,6 +63,8 @@ function App() {
   const [addingOrder, setAddingOrder] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historySearchVehicle, setHistorySearchVehicle] = useState(null);
 
   const token = auth?.token;
   const role = auth?.user?.role;
@@ -232,6 +234,17 @@ function App() {
         v.vin.toLowerCase().includes(q)
       );
     });
+
+  const historySearchResults =
+    historySearchQuery.trim() === ""
+      ? []
+      : vehicles.filter((v) => {
+          const q = historySearchQuery.trim().toLowerCase();
+          return (
+            v.license_plate.toLowerCase().includes(q) ||
+            v.vin.toLowerCase().includes(q)
+          );
+        });
 
   function renderOrderCard(order) {
     const isOpen = order.status === "open";
@@ -455,6 +468,16 @@ function App() {
           >
             รายการรถ
           </button>
+          <button
+            className={`app-header__nav-btn ${view === "historySearch" ? "active" : ""}`}
+            onClick={() => {
+              setView("historySearch");
+              setHistorySearchVehicle(null);
+              setHistorySearchQuery("");
+            }}
+          >
+            ค้นหาประวัติ
+          </button>
           {(role === "admin" || role === "sa") && (
             <button
               className={`app-header__nav-btn ${view === "intake" ? "active" : ""}`}
@@ -492,6 +515,59 @@ function App() {
           }}
         />
       )}
+
+      {view === "historySearch" && historySearchVehicle !== null && (
+        <HistoryPage
+          vehicle={historySearchVehicle}
+          statusOptions={statusOptions}
+          onBack={() => setHistorySearchVehicle(null)}
+        />
+      )}
+
+      {view === "historySearch" && historySearchVehicle === null && (
+        <div className="history-search-page">
+          <h1>ค้นหาประวัติรถ</h1>
+          <p className="history-search-page__hint">
+            พิมพ์เลขทะเบียนหรือเลข VIN เพื่อค้นหา
+          </p>
+          <input
+            className="history-search-input"
+            placeholder="เลขทะเบียน หรือ VIN"
+            value={historySearchQuery}
+            onChange={(e) => setHistorySearchQuery(e.target.value)}
+            autoFocus
+          />
+
+          {historySearchQuery.trim() !== "" &&
+            historySearchResults.length === 0 && (
+              <p className="detail-empty">
+                ไม่พบรถที่ตรงกับ "{historySearchQuery}"
+              </p>
+            )}
+
+          <div className="history-search-results">
+            {historySearchResults.map((v) => (
+              <button
+                key={v.id}
+                className="history-search-result"
+                onClick={() => setHistorySearchVehicle(v)}
+              >
+                <div>
+                  <div className="vehicle-card__plate">{v.license_plate}</div>
+                  <div className="vehicle-card__meta">
+                    {v.model} · {v.customer_name} ·{" "}
+                    <span className="part-number">{v.vin}</span>
+                  </div>
+                </div>
+                <span className="history-search-result__count">
+                  {v.repair_orders.length} ครั้ง →
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {view === "history" && detail !== null && (
         <HistoryPage
           vehicle={detail}

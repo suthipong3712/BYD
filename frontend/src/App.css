@@ -936,3 +936,60 @@ button:hover {
   font-size: 0.85rem;
   margin-bottom: 0.8rem;
 }
+
+
+.history-search-page {
+  max-width: 600px;
+  margin: 3rem auto 0;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.history-search-page h1 {
+  margin: 0 0 0.3rem;
+  font-size: 1.4rem;
+}
+
+.history-search-page__hint {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 1.5rem;
+}
+
+.history-search-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.history-search-results {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.history-search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1rem;
+}
+
+.history-search-result:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-2);
+}
+
+.history-search-result__count {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
