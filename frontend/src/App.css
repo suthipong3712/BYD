@@ -993,3 +993,13 @@ button:hover {
   font-size: 0.8rem;
   white-space: nowrap;
 }
+
+
+.import-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.import-table-wrap table {
+  min-width: 900px;
+}

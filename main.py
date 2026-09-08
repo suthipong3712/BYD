@@ -1,3 +1,4 @@
+import io
 import os
 import uuid
 from datetime import date
@@ -15,8 +16,10 @@ from auth import (
     verify_password,
 )
 from database import SessionLocal, get_db
+from import_utils import parse_workbook
 from models import (
     AuthToken,
+    JobType,
     PartsRequest,
     RepairItem,
     RepairOrder,
@@ -488,6 +491,80 @@ def update_repair_order(
     db.refresh(vehicle)
     return vehicle
 
+
+
+# --- Admin เท่านั้น: นำเข้าข้อมูลจาก Excel ---
+
+@app.post("/admin/import/preview")
+async def import_preview(
+    file: UploadFile = File(...), _: User = Depends(require_roles())
+):
+    content = await file.read()
+    rows = parse_workbook(io.BytesIO(content))
+    return {"rows": rows}
+
+
+@app.post("/admin/import/commit")
+def import_commit(
+    payload: schemas.ImportCommitRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles()),
+):
+    imported = 0
+    skipped = 0
+
+    for row in payload.rows:
+        if row.skip or not row.vin:
+            skipped += 1
+            continue
+
+        vehicle = db.query(Vehicle).filter(Vehicle.vin == row.vin).first()
+        if vehicle is None:
+            vehicle = Vehicle(
+                vin=row.vin,
+                license_plate=row.license_plate or "-",
+                model=row.model or "-",
+                customer_name=row.customer_name or "-",
+                phone=row.phone,
+            )
+            db.add(vehicle)
+            db.flush()
+
+        technician = None
+        if row.technician_name:
+            technician = (
+                db.query(Technician).filter(Technician.name == row.technician_name).first()
+            )
+            if technician is None:
+                technician = Technician(name=row.technician_name, active=True)
+                db.add(technician)
+                db.flush()
+
+        order = RepairOrder(
+            vehicle=vehicle,
+            job_type=JobType(row.job_type),
+            status=row.order_status,
+            open_date=date.fromisoformat(row.open_date),
+            diagnosis_result=row.diagnosis_result,
+            mileage=row.mileage,
+            data_complete=False,
+        )
+        item = RepairItem(
+            repair_order=order,
+            description=row.diagnosis_result or row.part_name or "นำเข้าจากไฟล์ Excel",
+            part_name=row.part_name,
+            part_number=row.part_number,
+            repair_time_estimate=row.repair_time_estimate,
+            technician=technician,
+            job_status="done" if row.order_status == "closed" else "not_started",
+        )
+        item.parts_request = PartsRequest(order_status=row.parts_order_status)
+
+        db.add(order)
+        imported += 1
+
+    db.commit()
+    return {"imported": imported, "skipped": skipped}
 
 @app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
 async def upload_order_photo(

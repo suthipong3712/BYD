@@ -5,6 +5,7 @@ import IntakeForm from "./IntakeForm";
 import LoginPage from "./LoginPage";
 import NewOrderForm from "./NewOrderForm";
 import HistoryPage from "./HistoryPage";
+import ImportPage from "./ImportPage";
 import { authFetch } from "./api";
 
 const ORDER_STATUS_LABEL = {
@@ -494,6 +495,14 @@ function App() {
               ⚙ Admin
             </button>
           )}
+          {role === "admin" && (
+            <button
+              className={`app-header__nav-btn ${view === "import" ? "active" : ""}`}
+              onClick={() => setView("import")}
+            >
+              นำเข้าข้อมูล
+            </button>
+          )}
         </div>
         <div className="app-header__user">
           <span>
@@ -506,6 +515,7 @@ function App() {
       </header>
 
       {view === "admin" && role === "admin" && <AdminPanel token={token} />}
+      {view === "import" && role === "admin" && <ImportPage token={token} />}
       {view === "intake" && (role === "admin" || role === "sa") && (
         <IntakeForm
           token={token}

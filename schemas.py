@@ -127,6 +127,34 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     active: Optional[bool] = None
     password: Optional[str] = None
+    
+
+
+class ImportRowPreview(BaseModel):
+    row_index: int
+    source_sheet: str
+    vin: Optional[str] = None
+    license_plate: Optional[str] = None
+    customer_name: Optional[str] = None
+    phone: Optional[str] = None
+    model: Optional[str] = None
+    job_type: str
+    diagnosis_result: Optional[str] = None
+    part_name: Optional[str] = None
+    part_number: Optional[str] = None
+    repair_time_estimate: Optional[str] = None
+    technician_name: Optional[str] = None
+    order_status: str
+    parts_order_status: str
+    open_date: str
+    mileage: Optional[int] = None
+    skip: bool
+    skip_reason: Optional[str] = None
+    warnings: list[str] = []
+
+
+class ImportCommitRequest(BaseModel):
+    rows: list[ImportRowPreview]
 
 
 class VehicleModelRead(BaseModel):
