@@ -4,6 +4,7 @@ import AdminPanel from "./AdminPanel";
 import IntakeForm from "./IntakeForm";
 import LoginPage from "./LoginPage";
 import NewOrderForm from "./NewOrderForm";
+import HistoryPage from "./HistoryPage";
 import { authFetch } from "./api";
 
 const ORDER_STATUS_LABEL = {
@@ -61,6 +62,7 @@ function App() {
   });
   const [addingOrder, setAddingOrder] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
 
   const token = auth?.token;
   const role = auth?.user?.role;
@@ -174,15 +176,6 @@ function App() {
     });
   }
 
-  function uploadPhoto(orderId, kind, file) {
-    const formData = new FormData();
-    formData.append("file", file);
-    authFetch(`/repair-orders/${orderId}/photo/${kind}`, token, {
-      method: "POST",
-      body: formData,
-    }).then(refreshDetail);
-  }
-
   function saveEdit(order) {
     authFetch(`/repair-orders/${order.id}`, token, {
       method: "PATCH",
@@ -192,6 +185,15 @@ function App() {
       setEditingOrderId(null);
       refreshDetail();
     });
+  }
+
+  function uploadPhoto(orderId, kind, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    authFetch(`/repair-orders/${orderId}/photo/${kind}`, token, {
+      method: "POST",
+      body: formData,
+    }).then(refreshDetail);
   }
 
   function optionsFor(category) {
@@ -230,6 +232,201 @@ function App() {
         v.vin.toLowerCase().includes(q)
       );
     });
+
+  function renderOrderCard(order) {
+    const isOpen = order.status === "open";
+    const isEditing = editingOrderId === order.id;
+    return (
+      <div className="repair-order" key={order.id}>
+        <div className="repair-order__header">
+          <div style={{ flex: 1 }}>
+            <h2 className="repair-order__title">
+              ใบสั่งซ่อม #{order.id}
+              {order.job_card_number &&
+                ` · เลขใบสั่งซ่อม ${order.job_card_number}`}
+            </h2>
+
+            {!isEditing && (
+              <div className="repair-order__meta">
+                {order.job_type === "warranty" ? "Warranty" : "Customer pay"}
+                {" · "}
+                {order.diagnosis_result ?? "ยังไม่มีผลวินิจฉัย"}
+                {" · "}
+                เปิดงานวันที่ {order.open_date}
+                {order.mileage != null &&
+                  ` · ${order.mileage.toLocaleString()} กม.`}
+              </div>
+            )}
+
+            {isEditing && (
+              <div className="edit-order-form">
+                <select
+                  value={editForm.job_type}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, job_type: e.target.value })
+                  }
+                >
+                  <option value="warranty">Warranty</option>
+                  <option value="customer_pay">Customer pay</option>
+                </select>
+                <input
+                  placeholder="ผลการวินิจฉัย"
+                  value={editForm.diagnosis_result}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      diagnosis_result: e.target.value,
+                    })
+                  }
+                />
+                <input
+                  placeholder="เลขใบสั่งซ่อม"
+                  value={editForm.job_card_number}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      job_card_number: e.target.value,
+                    })
+                  }
+                />
+                <button onClick={() => saveEdit(order)}>บันทึก</button>
+                <button onClick={() => setEditingOrderId(null)}>ยกเลิก</button>
+              </div>
+            )}
+          </div>
+
+          <div className="repair-order__actions">
+            <Badge color={ORDER_STATUS_COLOR[order.status]}>
+              {ORDER_STATUS_LABEL[order.status]}
+            </Badge>
+            {isOpen && canManage && !isEditing && (
+              <>
+                <button
+                  className="btn-close-order"
+                  onClick={() => startEdit(order)}
+                >
+                  แก้ไข
+                </button>
+                <button
+                  className="btn-close-order"
+                  onClick={() => closeOrder(order)}
+                >
+                  ปิดงาน
+                </button>
+                <button
+                  className="btn-cancel-order"
+                  onClick={() => cancelOrder(order)}
+                >
+                  ยกเลิกงาน
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="order-photos">
+          <PhotoSlot
+            label="รูปรถ"
+            src={order.car_photo_path}
+            canUpload={canManage}
+            onSelect={(file) => uploadPhoto(order.id, "car", file)}
+            onView={setLightboxSrc}
+          />
+          <PhotoSlot
+            label="รูปหน้า VIN"
+            src={order.vin_photo_path}
+            canUpload={canManage}
+            onSelect={(file) => uploadPhoto(order.id, "vin", file)}
+            onView={setLightboxSrc}
+          />
+        </div>
+
+        <table className="repair-table">
+          <thead>
+            <tr>
+              <th>รายการซ่อม</th>
+              <th>อะไหล่</th>
+              <th>สถานะอะไหล่</th>
+              <th>ช่าง</th>
+              <th>สถานะงาน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.items.map((item) => {
+              const partKey = item.parts_request?.order_status ?? "not_ordered";
+              const partMeta = optionMeta("parts_status", partKey);
+              const jobMeta = optionMeta("job_status", item.job_status);
+
+              return (
+                <tr key={item.id}>
+                  <td>{item.description}</td>
+                  <td className="part-number">{item.part_number ?? "-"}</td>
+                  <td>
+                    <select
+                      className={`status-select status-select--${partMeta.color}`}
+                      value={partKey}
+                      disabled={!isOpen || !canEditParts}
+                      onChange={(e) =>
+                        updatePartsStatus(item.id, e.target.value)
+                      }
+                    >
+                      {optionsFor("parts_status").map((opt) => (
+                        <option key={opt.key} value={opt.key}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>{item.technician ? item.technician.name : "-"}</td>
+                  <td>
+                    <select
+                      className={`status-select status-select--${jobMeta.color}`}
+                      value={item.job_status}
+                      disabled={!isOpen || !canEditJob}
+                      onChange={(e) => updateJobStatus(item.id, e.target.value)}
+                    >
+                      {optionsFor("job_status").map((opt) => (
+                        <option key={opt.key} value={opt.key}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  let openOrders = [];
+  let historyOrders = [];
+  let totalVisits = 0;
+  let closedVisits = 0;
+  let cancelledVisits = 0;
+  let lastVisitDate = null;
+
+  if (detail !== null) {
+    openOrders = detail.repair_orders.filter((o) => o.status === "open");
+    historyOrders = [...detail.repair_orders]
+      .filter((o) => o.status !== "open")
+      .sort((a, b) => b.open_date.localeCompare(a.open_date));
+    totalVisits = detail.repair_orders.length;
+    closedVisits = detail.repair_orders.filter(
+      (o) => o.status === "closed",
+    ).length;
+    cancelledVisits = detail.repair_orders.filter(
+      (o) => o.status === "cancelled",
+    ).length;
+    lastVisitDate =
+      detail.repair_orders.length > 0
+        ? [...detail.repair_orders].sort((a, b) =>
+            b.open_date.localeCompare(a.open_date),
+          )[0].open_date
+        : null;
+  }
 
   return (
     <div>
@@ -295,6 +492,14 @@ function App() {
           }}
         />
       )}
+      {view === "history" && detail !== null && (
+        <HistoryPage
+          vehicle={detail}
+          statusOptions={statusOptions}
+          onBack={() => setView("dashboard")}
+        />
+      )}
+
       {view === "dashboard" && (
         <div className="layout">
           <div className="sidebar">
@@ -330,10 +535,14 @@ function App() {
                 <button
                   key={v.id}
                   className={`vehicle-card ${selectedId === v.id ? "selected" : ""}`}
+                  style={{
+                    borderLeftColor: `var(--status-${status.color}-text, var(--color-border))`,
+                  }}
                   onClick={() => {
                     const nextId = selectedId === v.id ? null : v.id;
                     setSelectedId(nextId);
                     if (nextId === null) setDetail(null);
+                    setExpandedHistoryId(null);
                   }}
                 >
                   <div>
@@ -354,246 +563,142 @@ function App() {
             )}
 
             {detail !== null && (
-              <div className="info-grid">
-                <div className="info-box">
-                  <h3>ข้อมูลรถ</h3>
-                  <div className="info-row">
-                    <span>ทะเบียน</span>
-                    <span>{detail.license_plate}</span>
-                  </div>
-                  <div className="info-row">
-                    <span>รุ่น</span>
-                    <span>{detail.model}</span>
-                  </div>
-                  <div className="info-row">
-                    <span>VIN</span>
-                    <span className="part-number">{detail.vin}</span>
-                  </div>
-                </div>
-                <div className="info-box">
-                  <h3>ข้อมูลลูกค้า</h3>
-                  <div className="info-row">
-                    <span>ชื่อ</span>
-                    <span>{detail.customer_name}</span>
-                  </div>
-                  <div className="info-row">
-                    <span>เบอร์โทร</span>
-                    <span>{detail.phone ?? "-"}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {detail !== null && canManage && !addingOrder && (
-              <button
-                className="btn-add-order"
-                onClick={() => setAddingOrder(true)}
-              >
-                + เพิ่มงานซ่อม
-              </button>
-            )}
-
-            {detail !== null && addingOrder && (
-              <NewOrderForm
-                token={token}
-                vehicleId={selectedId}
-                onCreated={() => {
-                  setAddingOrder(false);
-                  refreshDetail();
-                }}
-                onCancel={() => setAddingOrder(false)}
-              />
-            )}
-
-            {detail !== null &&
-              detail.repair_orders.map((order) => {
-                const isOpen = order.status === "open";
-                const isEditing = editingOrderId === order.id;
-                return (
-                  <div className="repair-order" key={order.id}>
-                    <div className="repair-order__header">
-                      <div style={{ flex: 1 }}>
-                        <h2 className="repair-order__title">
-                          ใบสั่งซ่อม #{order.id}
-                          {order.job_card_number &&
-                            ` · เลขใบสั่งซ่อม ${order.job_card_number}`}
-                        </h2>
-
-                        {!isEditing && (
-                          <div className="repair-order__meta">
-                            {order.job_type === "warranty"
-                              ? "Warranty"
-                              : "Customer pay"}
-                            {" · "}
-                            {order.diagnosis_result ?? "ยังไม่มีผลวินิจฉัย"}
-                            {" · "}
-                            เปิดงานวันที่ {order.open_date}
-                            {order.mileage != null &&
-                              ` · ${order.mileage.toLocaleString()} กม.`}
-                          </div>
-                        )}
-                        <div className="order-photos">
-                          <PhotoSlot
-                            label="รูปรถ"
-                            src={order.car_photo_path}
-                            canUpload={canManage}
-                            onSelect={(file) =>
-                              uploadPhoto(order.id, "car", file)
-                            }
-                            onView={setLightboxSrc}
-                          />
-                          <PhotoSlot
-                            label="รูปหน้า VIN"
-                            src={order.vin_photo_path}
-                            canUpload={canManage}
-                            onSelect={(file) =>
-                              uploadPhoto(order.id, "vin", file)
-                            }
-                            onView={setLightboxSrc}
-                          />
-                        </div>
-                        {isEditing && (
-                          <div className="edit-order-form">
-                            <select
-                              value={editForm.job_type}
-                              onChange={(e) =>
-                                setEditForm({
-                                  ...editForm,
-                                  job_type: e.target.value,
-                                })
-                              }
-                            >
-                              <option value="warranty">Warranty</option>
-                              <option value="customer_pay">Customer pay</option>
-                            </select>
-                            <input
-                              placeholder="ผลการวินิจฉัย"
-                              value={editForm.diagnosis_result}
-                              onChange={(e) =>
-                                setEditForm({
-                                  ...editForm,
-                                  diagnosis_result: e.target.value,
-                                })
-                              }
-                            />
-                            <input
-                              placeholder="เลขใบสั่งซ่อม"
-                              value={editForm.job_card_number}
-                              onChange={(e) =>
-                                setEditForm({
-                                  ...editForm,
-                                  job_card_number: e.target.value,
-                                })
-                              }
-                            />
-                            <button onClick={() => saveEdit(order)}>
-                              บันทึก
-                            </button>
-                            <button onClick={() => setEditingOrderId(null)}>
-                              ยกเลิก
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="repair-order__actions">
-                        <Badge color={ORDER_STATUS_COLOR[order.status]}>
-                          {ORDER_STATUS_LABEL[order.status]}
-                        </Badge>
-                        {isOpen && canManage && !isEditing && (
-                          <>
-                            <button
-                              className="btn-close-order"
-                              onClick={() => startEdit(order)}
-                            >
-                              แก้ไข
-                            </button>
-                            <button
-                              className="btn-close-order"
-                              onClick={() => closeOrder(order)}
-                            >
-                              ปิดงาน
-                            </button>
-                            <button
-                              className="btn-cancel-order"
-                              onClick={() => cancelOrder(order)}
-                            >
-                              ยกเลิกงาน
-                            </button>
-                          </>
-                        )}
-                      </div>
+              <>
+                <div className="info-grid">
+                  <div className="info-box">
+                    <h3>ข้อมูลรถ</h3>
+                    <div className="info-row">
+                      <span>ทะเบียน</span>
+                      <span>{detail.license_plate}</span>
                     </div>
-
-                    <table className="repair-table">
-                      <thead>
-                        <tr>
-                          <th>รายการซ่อม</th>
-                          <th>อะไหล่</th>
-                          <th>สถานะอะไหล่</th>
-                          <th>ช่าง</th>
-                          <th>สถานะงาน</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {order.items.map((item) => {
-                          const partKey =
-                            item.parts_request?.order_status ?? "not_ordered";
-                          const partMeta = optionMeta("parts_status", partKey);
-                          const jobMeta = optionMeta(
-                            "job_status",
-                            item.job_status,
-                          );
-
-                          return (
-                            <tr key={item.id}>
-                              <td>{item.description}</td>
-                              <td className="part-number">
-                                {item.part_number ?? "-"}
-                              </td>
-                              <td>
-                                <select
-                                  className={`status-select status-select--${partMeta.color}`}
-                                  value={partKey}
-                                  disabled={!isOpen || !canEditParts}
-                                  onChange={(e) =>
-                                    updatePartsStatus(item.id, e.target.value)
-                                  }
-                                >
-                                  {optionsFor("parts_status").map((opt) => (
-                                    <option key={opt.key} value={opt.key}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                {item.technician ? item.technician.name : "-"}
-                              </td>
-                              <td>
-                                <select
-                                  className={`status-select status-select--${jobMeta.color}`}
-                                  value={item.job_status}
-                                  disabled={!isOpen || !canEditJob}
-                                  onChange={(e) =>
-                                    updateJobStatus(item.id, e.target.value)
-                                  }
-                                >
-                                  {optionsFor("job_status").map((opt) => (
-                                    <option key={opt.key} value={opt.key}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="info-row">
+                      <span>รุ่น</span>
+                      <span>{detail.model}</span>
+                    </div>
+                    <div className="info-row">
+                      <span>VIN</span>
+                      <span className="part-number">{detail.vin}</span>
+                    </div>
                   </div>
-                );
-              })}
+                  <div className="info-box">
+                    <h3>ข้อมูลลูกค้า</h3>
+                    <div className="info-row">
+                      <span>ชื่อ</span>
+                      <span>{detail.customer_name}</span>
+                    </div>
+                    <div className="info-row">
+                      <span>เบอร์โทร</span>
+                      <span>{detail.phone ?? "-"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="history-stats">
+                  <div className="stat-box">
+                    <div className="stat-box__value">{totalVisits}</div>
+                    <div className="stat-box__label">เข้าซ่อมทั้งหมด</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-box__value">{closedVisits}</div>
+                    <div className="stat-box__label">เสร็จสิ้นแล้ว</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-box__value">{cancelledVisits}</div>
+                    <div className="stat-box__label">ยกเลิก</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-box__value">
+                      {lastVisitDate ?? "-"}
+                    </div>
+                    <div className="stat-box__label">เข้าล่าสุด</div>
+                  </div>
+                </div>
+
+                <div className="action-row">
+                  <button
+                    className="btn-view-history"
+                    onClick={() => setView("history")}
+                  >
+                    ดูประวัติทั้งหมดแบบเต็ม →
+                  </button>
+
+                  {canManage && !addingOrder && (
+                    <button
+                      className="btn-add-order"
+                      onClick={() => setAddingOrder(true)}
+                    >
+                      + เพิ่มงานซ่อม
+                    </button>
+                  )}
+                </div>
+
+                {addingOrder && (
+                  <NewOrderForm
+                    token={token}
+                    vehicleId={selectedId}
+                    onCreated={() => {
+                      setAddingOrder(false);
+                      refreshDetail();
+                    }}
+                    onCancel={() => setAddingOrder(false)}
+                  />
+                )}
+
+                {openOrders.length === 0 && historyOrders.length === 0 && (
+                  <p className="detail-empty">
+                    ยังไม่มีใบสั่งซ่อมสำหรับรถคันนี้
+                  </p>
+                )}
+
+                {openOrders.length > 0 && (
+                  <>
+                    <h3 className="section-heading">งานที่กำลังดำเนินการ</h3>
+                    {openOrders.map(renderOrderCard)}
+                  </>
+                )}
+
+                {historyOrders.length > 0 && (
+                  <>
+                    <h3 className="section-heading">
+                      ประวัติการเข้าซ่อม ({historyOrders.length})
+                    </h3>
+                    {historyOrders.map((order) => {
+                      const isExpanded = expandedHistoryId === order.id;
+                      return (
+                        <div className="history-entry" key={order.id}>
+                          <div
+                            className="history-row"
+                            onClick={() =>
+                              setExpandedHistoryId(isExpanded ? null : order.id)
+                            }
+                          >
+                            <span className="history-row__date">
+                              {order.open_date}
+                            </span>
+                            <span>
+                              {order.job_type === "warranty"
+                                ? "Warranty"
+                                : "Customer pay"}
+                            </span>
+                            <span>{order.items.length} รายการ</span>
+                            {order.mileage != null && (
+                              <span>{order.mileage.toLocaleString()} กม.</span>
+                            )}
+                            <Badge color={ORDER_STATUS_COLOR[order.status]}>
+                              {ORDER_STATUS_LABEL[order.status]}
+                            </Badge>
+                            <span className="history-row__chevron">
+                              {isExpanded ? "▲" : "▼"}
+                            </span>
+                          </div>
+                          {isExpanded && renderOrderCard(order)}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

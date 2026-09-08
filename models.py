@@ -70,6 +70,9 @@ class VehicleModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
     active: Mapped[bool] = mapped_column(default=True)
+    sort_order: Mapped[int] = mapped_column(default=0)
+    
+    
 class RepairOrder(Base):
     __tablename__ = "repair_orders"
 

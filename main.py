@@ -136,7 +136,7 @@ def delete_user(
 def list_vehicle_models(
     db: Session = Depends(get_db), _: User = Depends(get_current_user)
 ):
-    return db.query(VehicleModel).all()
+    return db.query(VehicleModel).order_by(VehicleModel.sort_order).all()
 
 
 @app.post("/vehicle-models", response_model=schemas.VehicleModelRead)
@@ -167,6 +167,20 @@ def update_vehicle_model(
     db.commit()
     db.refresh(model)
     return model
+
+
+@app.post("/vehicle-models/reorder")
+def reorder_vehicle_models(
+    payload: schemas.VehicleModelReorder,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles()),
+):
+    for index, model_id in enumerate(payload.ordered_ids):
+        db.query(VehicleModel).filter(VehicleModel.id == model_id).update(
+            {"sort_order": index}
+        )
+    db.commit()
+    return {"ok": True}
 
 
 # --- อ่านข้อมูล: ใครก็ได้ที่ login แล้ว ---
@@ -321,13 +335,17 @@ def update_technician(
 
 @app.delete("/technicians/{technician_id}")
 def delete_technician(
-    technician_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
+    technician_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles()),
 ):
     technician = db.query(Technician).filter(Technician.id == technician_id).first()
     if technician is None:
         raise HTTPException(status_code=404, detail="Technician not found")
 
-    used_count = db.query(RepairItem).filter(RepairItem.technician_id == technician_id).count()
+    used_count = (
+        db.query(RepairItem).filter(RepairItem.technician_id == technician_id).count()
+    )
     if used_count > 0:
         raise HTTPException(
             status_code=400,

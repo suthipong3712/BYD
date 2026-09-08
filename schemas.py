@@ -135,6 +135,7 @@ class VehicleModelRead(BaseModel):
     id: int
     name: str
     active: bool
+    sort_order: int
 
 
 class VehicleModelCreate(BaseModel):
@@ -144,6 +145,10 @@ class VehicleModelCreate(BaseModel):
 class VehicleModelUpdate(BaseModel):
     name: Optional[str] = None
     active: Optional[bool] = None
+
+
+class VehicleModelReorder(BaseModel):
+    ordered_ids: list[int]
 
 
 class VehicleCreate(BaseModel):
