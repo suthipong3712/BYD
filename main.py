@@ -303,6 +303,18 @@ def update_status_option(
     return option
 
 
+@app.delete("/status-options/{option_id}")
+def delete_status_option(
+    option_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
+):
+    option = db.query(StatusOption).filter(StatusOption.id == option_id).first()
+    if option is None:
+        raise HTTPException(status_code=404, detail="Status option not found")
+    db.delete(option)
+    db.commit()
+    return {"ok": True}
+
+
 # --- Admin เท่านั้น: จัดการช่าง ---
 
 
@@ -492,8 +504,8 @@ def update_repair_order(
     return vehicle
 
 
-
 # --- Admin เท่านั้น: นำเข้าข้อมูลจาก Excel ---
+
 
 @app.post("/admin/import/preview")
 async def import_preview(
@@ -513,12 +525,26 @@ def import_commit(
     imported = 0
     skipped = 0
 
+    duplicates = 0
+
+    # สแนปช็อตข้อมูลที่มีอยู่แล้ว "ก่อน" เริ่มนำเข้าไฟล์นี้ — เช็คซ้ำกับชุดนี้เท่านั้น
+    # ไม่เอาไปเทียบกับแถวที่เพิ่งสร้างขึ้นเองในลูปนี้ (กันเข้าใจผิดว่าแถวคล้ายกันในไฟล์เดียวกันคือของซ้ำ)
+    existing_signatures = set(
+        db.query(RepairOrder.vehicle_id, RepairOrder.open_date, RepairOrder.diagnosis_result).all()
+    )
+
     for row in payload.rows:
         if row.skip or not row.vin:
             skipped += 1
             continue
 
         vehicle = db.query(Vehicle).filter(Vehicle.vin == row.vin).first()
+
+        if vehicle is not None:
+            signature = (vehicle.id, date.fromisoformat(row.open_date), row.diagnosis_result)
+            if signature in existing_signatures:
+                duplicates += 1
+                continue
         if vehicle is None:
             vehicle = Vehicle(
                 vin=row.vin,
@@ -533,7 +559,9 @@ def import_commit(
         technician = None
         if row.technician_name:
             technician = (
-                db.query(Technician).filter(Technician.name == row.technician_name).first()
+                db.query(Technician)
+                .filter(Technician.name == row.technician_name)
+                .first()
             )
             if technician is None:
                 technician = Technician(name=row.technician_name, active=True)
@@ -563,8 +591,9 @@ def import_commit(
         db.add(order)
         imported += 1
 
-    db.commit()
-    return {"imported": imported, "skipped": skipped}
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "duplicates": duplicates}
+
 
 @app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
 async def upload_order_photo(

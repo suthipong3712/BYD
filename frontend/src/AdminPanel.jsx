@@ -5,6 +5,7 @@ const COLOR_OPTIONS = ["green", "amber", "red", "muted"];
 const CATEGORY_LABEL = {
   job_status: "สถานะงานช่าง",
   parts_status: "สถานะอะไหล่",
+  vehicle_summary: "สถานะรวมของรถ (แสดงในรายการรถ)",
 };
 const ROLE_OPTIONS = ["admin", "sa", "parts", "technician"];
 
@@ -86,6 +87,19 @@ function AdminPanel({ token }) {
       loadOptions();
       showToast("บันทึกแล้ว");
     });
+  }
+
+  function deleteOption(option) {
+    const ok = window.confirm(
+      `ต้องการลบตัวเลือก "${option.label}" ใช่ไหม? (ใบสั่งซ่อมเก่าที่เคยใช้ค่านี้จะยังอยู่ แต่จะแสดงเป็นรหัสดิบแทน)`,
+    );
+    if (!ok) return;
+    authFetch(`/status-options/${option.id}`, token, { method: "DELETE" }).then(
+      () => {
+        loadOptions();
+        showToast("ลบแล้ว");
+      },
+    );
   }
 
   function addOption(e) {
@@ -448,7 +462,7 @@ function AdminPanel({ token }) {
         </form>
       </div>
 
-      {["job_status", "parts_status"].map((category) => (
+      {["job_status", "parts_status", "vehicle_summary"].map((category) => (
         <div key={category} className="admin-section">
           <h2>{CATEGORY_LABEL[category]}</h2>
           <table className="admin-table">
@@ -458,6 +472,7 @@ function AdminPanel({ token }) {
                 <th>ข้อความที่แสดง</th>
                 <th>สี</th>
                 <th>ลำดับ</th>
+                <th></th>
                 <th></th>
               </tr>
             </thead>
@@ -503,6 +518,9 @@ function AdminPanel({ token }) {
                     <td>
                       <button onClick={() => saveOption(o)}>บันทึก</button>
                     </td>
+                    <td>
+                      <button onClick={() => deleteOption(o)}>ลบ</button>
+                    </td>
                   </tr>
                 ))}
             </tbody>
@@ -521,6 +539,7 @@ function AdminPanel({ token }) {
           >
             <option value="job_status">สถานะงานช่าง</option>
             <option value="parts_status">สถานะอะไหล่</option>
+            <option value="vehicle_summary">สถานะรวมของรถ</option>
           </select>
           <input
             placeholder="key (เช่น waiting_customer)"

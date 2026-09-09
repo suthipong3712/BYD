@@ -19,21 +19,53 @@ const ORDER_STATUS_COLOR = {
   closed: "green",
   cancelled: "muted",
 };
+const THAI_MONTHS = [
+  "มกราคม",
+  "กุมภาพันธ์",
+  "มีนาคม",
+  "เมษายน",
+  "พฤษภาคม",
+  "มิถุนายน",
+  "กรกฎาคม",
+  "สิงหาคม",
+  "กันยายน",
+  "ตุลาคม",
+  "พฤศจิกายน",
+  "ธันวาคม",
+];
 
-function getVehicleStatus(vehicle) {
+function monthLabel(key) {
+  const [y, m] = key.split("-").map(Number);
+  return `${THAI_MONTHS[m - 1]} ${y + 543}`;
+}
+
+function groupVehiclesByMonth(vehicleList) {
+  const groups = {};
+  vehicleList.forEach((v) => {
+    const dates = v.repair_orders.map((o) => o.open_date).filter(Boolean);
+    if (dates.length === 0) return;
+    const lastDate = [...dates].sort().reverse()[0];
+    const key = lastDate.slice(0, 7);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(v);
+  });
+  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+}
+
+function getVehicleStatusKey(vehicle) {
   const openOrders = vehicle.repair_orders.filter((o) => o.status === "open");
   const items = openOrders.flatMap((o) => o.items);
-  if (items.length === 0) return { color: "muted", label: "ไม่มีงานค้าง" };
+  if (items.length === 0) return "no_pending";
 
   const allDone = items.every((i) => i.job_status === "done");
-  if (allDone) return { color: "green", label: "พร้อมส่งมอบ" };
+  if (allDone) return "ready";
 
   const hasNotOrdered = items.some(
     (i) => i.parts_request?.order_status === "not_ordered",
   );
-  if (hasNotOrdered) return { color: "red", label: "รออะไหล่" };
+  if (hasNotOrdered) return "waiting_parts";
 
-  return { color: "amber", label: "กำลังดำเนินการ" };
+  return "in_progress";
 }
 
 function Badge({ color, children }) {
@@ -55,6 +87,8 @@ function App() {
   const [statusOptions, setStatusOptions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [listTab, setListTab] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [expandedMonths, setExpandedMonths] = useState(new Set());
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [editForm, setEditForm] = useState({
     job_type: "warranty",
@@ -103,6 +137,16 @@ function App() {
       .then((res) => res.json())
       .then((data) => setDetail(data));
   }, [selectedId, auth]);
+
+  useEffect(() => {
+    if (listTab !== "done") return;
+    const groups = groupVehiclesByMonth(
+      vehicles.filter((v) => !isVehiclePending(v)),
+    );
+    if (groups.length > 0) {
+      setExpandedMonths(new Set([groups[0][0]]));
+    }
+  }, [listTab, vehicles]);
 
   function refreshVehicleList() {
     authFetch("/vehicles", token)
@@ -226,6 +270,9 @@ function App() {
     .filter((v) =>
       listTab === "pending" ? isVehiclePending(v) : !isVehiclePending(v),
     )
+    .filter(
+      (v) => statusFilter === "all" || getVehicleStatusKey(v) === statusFilter,
+    )
     .filter((v) => {
       const q = searchQuery.trim().toLowerCase();
       if (q === "") return true;
@@ -235,6 +282,17 @@ function App() {
         v.vin.toLowerCase().includes(q)
       );
     });
+  const showGrouped = listTab === "done" && searchQuery.trim() === "";
+  const monthGroups = showGrouped ? groupVehiclesByMonth(filteredVehicles) : [];
+
+  function toggleMonth(key) {
+    setExpandedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const historySearchResults =
     historySearchQuery.trim() === ""
@@ -611,36 +669,71 @@ function App() {
               </button>
             </div>
 
-            {filteredVehicles.length === 0 && (
-              <p className="sidebar-empty">ไม่พบรถที่ตรงกับเงื่อนไข</p>
-            )}
+            <select
+              className="sidebar-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">ทุกสถานะ</option>
+              {optionsFor("vehicle_summary").map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
 
-            {filteredVehicles.map((v) => {
-              const status = getVehicleStatus(v);
-              return (
-                <button
-                  key={v.id}
-                  className={`vehicle-card ${selectedId === v.id ? "selected" : ""}`}
-                  style={{
-                    borderLeftColor: `var(--status-${status.color}-text, var(--color-border))`,
-                  }}
-                  onClick={() => {
-                    const nextId = selectedId === v.id ? null : v.id;
-                    setSelectedId(nextId);
-                    if (nextId === null) setDetail(null);
-                    setExpandedHistoryId(null);
-                  }}
-                >
-                  <div>
-                    <div className="vehicle-card__plate">{v.license_plate}</div>
-                    <div className="vehicle-card__meta">
-                      {v.model} · {v.customer_name}
+            <div className="vehicle-list">
+              {filteredVehicles.length === 0 && (
+                <p className="sidebar-empty">ไม่พบรถที่ตรงกับเงื่อนไข</p>
+              )}
+
+              {!showGrouped &&
+                filteredVehicles.map((v) => (
+                  <VehicleCard
+                    key={v.id}
+                    vehicle={v}
+                    selectedId={selectedId}
+                    optionMeta={optionMeta}
+                    onSelect={(nextId) => {
+                      setSelectedId(nextId);
+                      if (nextId === null) setDetail(null);
+                      setExpandedHistoryId(null);
+                    }}
+                  />
+                ))}
+
+              {showGrouped &&
+                monthGroups.map(([key, vehiclesInMonth]) => {
+                  const isOpen = expandedMonths.has(key);
+                  return (
+                    <div className="month-group" key={key}>
+                      <button
+                        className="month-group__header"
+                        onClick={() => toggleMonth(key)}
+                      >
+                        <span>{monthLabel(key)}</span>
+                        <span className="month-group__count">
+                          {vehiclesInMonth.length} คัน {isOpen ? "▲" : "▼"}
+                        </span>
+                      </button>
+                      {isOpen &&
+                        vehiclesInMonth.map((v) => (
+                          <VehicleCard
+                            key={v.id}
+                            vehicle={v}
+                            selectedId={selectedId}
+                            optionMeta={optionMeta}
+                            onSelect={(nextId) => {
+                              setSelectedId(nextId);
+                              if (nextId === null) setDetail(null);
+                              setExpandedHistoryId(null);
+                            }}
+                          />
+                        ))}
                     </div>
-                  </div>
-                  <Badge color={status.color}>{status.label}</Badge>
-                </button>
-              );
-            })}
+                  );
+                })}
+            </div>
           </div>
 
           <div className="detail-panel">
@@ -801,6 +894,27 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+function VehicleCard({ vehicle, selectedId, optionMeta, onSelect }) {
+  const statusKey = getVehicleStatusKey(vehicle);
+  const statusMeta = optionMeta("vehicle_summary", statusKey);
+  return (
+    <button
+      className={`vehicle-card ${selectedId === vehicle.id ? "selected" : ""}`}
+      style={{
+        borderLeftColor: `var(--status-${statusMeta.color}-text, var(--color-border))`,
+      }}
+      onClick={() => onSelect(selectedId === vehicle.id ? null : vehicle.id)}
+    >
+      <div>
+        <div className="vehicle-card__plate">{vehicle.license_plate}</div>
+        <div className="vehicle-card__meta">
+          {vehicle.model} · {vehicle.customer_name}
+        </div>
+      </div>
+      <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
+    </button>
   );
 }
 

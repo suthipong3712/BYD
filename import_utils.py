@@ -135,6 +135,9 @@ def parse_workbook(file_bytes_io):
     rows = []
     index = 0
     for name, df in sheets.items():
+        df.columns = df.columns.astype(
+            str
+        ).str.strip()  # ตัดช่องว่างหน้า/หลังชื่อคอลัมน์ทิ้ง
         if "รอดำเนินการ" in name:
             parsed = _parse_pending_sheet(df, index)
         elif "เสร็จสิ้น" in name:

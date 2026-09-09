@@ -42,7 +42,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   background: var(--color-surface-2);
   color: var(--color-text);
   border: 1px solid var(--color-border);
@@ -50,7 +52,9 @@ input, select, textarea {
   font: inherit;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -230,6 +234,26 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: sticky;
+  top: 1.25rem;
+  max-height: calc(100vh - 2.5rem);
+}
+
+.vehicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.vehicle-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vehicle-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
 }
 
 .sidebar-search {
@@ -315,10 +339,26 @@ button:hover {
   font-weight: 500;
   white-space: nowrap;
 }
-.badge--green { background: var(--status-green-bg); color: var(--status-green-text); }
-.badge--amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
-.badge--red   { background: var(--status-red-bg);   color: var(--status-red-text); }
-.badge--muted { background: var(--status-muted-bg); color: var(--status-muted-text); }
+
+.badge--green {
+  background: var(--status-green-bg);
+  color: var(--status-green-text);
+}
+
+.badge--amber {
+  background: var(--status-amber-bg);
+  color: var(--status-amber-text);
+}
+
+.badge--red {
+  background: var(--status-red-bg);
+  color: var(--status-red-text);
+}
+
+.badge--muted {
+  background: var(--status-muted-bg);
+  color: var(--status-muted-text);
+}
 
 .detail-panel {
   flex: 1;
@@ -372,7 +412,7 @@ button:hover {
 
 /* ---------- Repair order card ---------- */
 
-.repair-order + .repair-order {
+.repair-order+.repair-order {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
@@ -473,9 +513,21 @@ button:hover {
   font-size: 0.78rem;
   font-weight: 500;
 }
-.status-select--green { background: var(--status-green-bg); color: var(--status-green-text); }
-.status-select--amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
-.status-select--red   { background: var(--status-red-bg);   color: var(--status-red-text); }
+
+.status-select--green {
+  background: var(--status-green-bg);
+  color: var(--status-green-text);
+}
+
+.status-select--amber {
+  background: var(--status-amber-bg);
+  color: var(--status-amber-text);
+}
+
+.status-select--red {
+  background: var(--status-red-bg);
+  color: var(--status-red-text);
+}
 
 .status-select:disabled {
   opacity: 0.6;
@@ -902,9 +954,18 @@ button:hover {
   border-radius: 50%;
   border: 2px solid var(--color-bg);
 }
-.timeline-dot--red { background: var(--status-red-text); }
-.timeline-dot--green { background: var(--status-green-text); }
-.timeline-dot--muted { background: var(--status-muted-text); }
+
+.timeline-dot--red {
+  background: var(--status-red-text);
+}
+
+.timeline-dot--green {
+  background: var(--status-green-text);
+}
+
+.timeline-dot--muted {
+  background: var(--status-muted-text);
+}
 
 .timeline-card {
   background: var(--color-surface);
@@ -1002,4 +1063,36 @@ button:hover {
 
 .import-table-wrap table {
   min-width: 900px;
+}
+
+
+.sidebar-filter {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+
+
+.month-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.month-group__header {
+  display: flex;
+  justify-content: space-between;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.month-group__count {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 0.75rem;
 }
