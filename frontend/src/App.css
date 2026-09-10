@@ -1,31 +1,31 @@
 :root {
-  --color-bg: #10141a;
-  --color-surface: #181f27;
-  --color-surface-2: #212a34;
-  --color-surface-3: #2a3441;
-  --color-border: #2a3340;
-  --color-border-strong: #3a4453;
-  --color-text: #eef1f5;
-  --color-text-muted: #8b96a5;
-  --color-primary: #3ecad8;
-  --color-primary-soft: rgba(62, 202, 216, 0.12);
-  --color-primary-dark: #2a9aa6;
+  --color-bg: #08090b;
+  --color-surface: #0d0f13;
+  --color-surface-2: #15171c;
+  --color-surface-3: #1d2027;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-text: #f2f3f5;
+  --color-text-muted: #8a8f98;
+  --color-primary: #6366f1;
+  --color-primary-hover: #7577f4;
+  --color-primary-soft: rgba(99, 102, 241, 0.14);
 
-  --status-green-bg: rgba(53, 201, 143, 0.16);
-  --status-green-text: #4fe3ab;
-  --status-amber-bg: rgba(232, 163, 61, 0.18);
-  --status-amber-text: #f0b955;
-  --status-red-bg: rgba(232, 97, 92, 0.18);
-  --status-red-text: #f28883;
-  --status-muted-bg: rgba(139, 148, 163, 0.14);
-  --status-muted-text: #a3adba;
+  --status-green-bg: rgba(61, 220, 151, 0.14);
+  --status-green-text: #3ddc97;
+  --status-amber-bg: rgba(242, 184, 75, 0.16);
+  --status-amber-text: #f2b84b;
+  --status-red-bg: rgba(242, 119, 122, 0.16);
+  --status-red-text: #f2777a;
+  --status-muted-bg: rgba(138, 143, 152, 0.14);
+  --status-muted-text: #8a8f98;
 
-  --radius-sm: 7px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -35,11 +35,12 @@
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 15% -10%, rgba(62, 202, 216, 0.07), transparent 45%),
+    radial-gradient(circle at 15% -10%, rgba(99, 102, 241, 0.06), transparent 45%),
     var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
 }
 
 input,
@@ -67,7 +68,7 @@ button {
   border-radius: var(--radius-sm);
   padding: 0.4rem 0.8rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
 button:hover {
@@ -82,8 +83,7 @@ button:hover {
   align-items: center;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
-  padding: 0.85rem 1.5rem;
+  padding: 0.9rem 1.75rem;
   position: relative;
   z-index: 10;
 }
@@ -95,8 +95,8 @@ button:hover {
 }
 
 .app-header__logo {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   background: var(--color-primary-soft);
@@ -108,14 +108,15 @@ button:hover {
 
 .app-header__brand h1 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
 .app-header__brand span {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--color-text-muted);
   margin-top: 0.1rem;
 }
@@ -125,7 +126,6 @@ button:hover {
   gap: 2px;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm) + 3px;
   border-radius: 10px;
   padding: 3px;
 }
@@ -136,12 +136,13 @@ button:hover {
   border: none;
   border-radius: 7px;
   padding: 0.4rem 0.85rem;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .app-header__nav-btn.active {
   background: var(--color-primary);
-  color: #0a1013;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -149,7 +150,7 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   color: var(--color-text-muted);
 }
 
@@ -158,12 +159,12 @@ button:hover {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   padding: 0.3rem 0.7rem;
-  font-size: 0.78rem;
+  font-size: 0.77rem;
 }
 
 .app-header__logout:hover {
   color: var(--color-text);
-  border-color: var(--color-primary-dark);
+  border-color: var(--color-border-strong);
 }
 
 /* ---------- Login ---------- */
@@ -180,7 +181,7 @@ button:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  padding: 2.5rem 2.25rem;
+  padding: 2.75rem 2.5rem;
   width: 320px;
   display: flex;
   flex-direction: column;
@@ -189,7 +190,9 @@ button:hover {
 
 .login-card h1 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-align: center;
 }
 
@@ -197,34 +200,38 @@ button:hover {
   margin: 0 0 0.5rem;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .login-card input {
-  padding: 0.6rem 0.7rem;
+  padding: 0.65rem 0.75rem;
 }
 
 .login-error {
   color: var(--status-red-text);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   margin: 0;
 }
 
 .login-submit {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #0a1013;
+  background: var(--color-primary);
+  color: #ffffff;
   border: none;
   padding: 0.65rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
 }
 
+.login-submit:hover {
+  background: var(--color-primary-hover);
+}
+
 /* ---------- Dashboard layout ---------- */
 
 .layout {
   display: flex;
-  gap: 1.25rem;
-  padding: 1.25rem;
+  gap: 1.5rem;
+  padding: 1.5rem;
   align-items: flex-start;
 }
 
@@ -235,8 +242,52 @@ button:hover {
   flex-direction: column;
   gap: 0.5rem;
   position: sticky;
-  top: 1.25rem;
-  max-height: calc(100vh - 2.5rem);
+  top: 1.5rem;
+  max-height: calc(100vh - 3rem);
+}
+
+.sidebar-search {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+}
+
+.sidebar-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 3px;
+}
+
+.sidebar-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.sidebar-tab.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar-filter {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.sidebar-empty {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 1rem 0;
 }
 
 .vehicle-list {
@@ -256,43 +307,27 @@ button:hover {
   border-radius: 999px;
 }
 
-.sidebar-search {
-  width: 100%;
-  padding: 0.5rem 0.7rem;
-  margin-bottom: 0.1rem;
+.month-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.sidebar-tabs {
+.month-group__header {
   display: flex;
-  gap: 2px;
+  justify-content: space-between;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 3px;
-  margin-bottom: 0.5rem;
-}
-
-.sidebar-tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  padding: 0.4rem 0.5rem;
-  font-size: 0.78rem;
-  border-radius: 6px;
-}
-
-.sidebar-tab.active {
-  background: var(--color-primary);
-  color: #0a1013;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.sidebar-empty {
+.month-group__count {
   color: var(--color-text-muted);
-  font-size: 0.82rem;
-  text-align: center;
-  padding: 1rem 0;
+  font-weight: 400;
+  font-size: 0.75rem;
 }
 
 .vehicle-card {
@@ -321,13 +356,13 @@ button:hover {
 
 .vehicle-card__plate {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   color: var(--color-text);
 }
 
 .vehicle-card__meta {
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   margin-top: 0.15rem;
 }
 
@@ -335,7 +370,7 @@ button:hover {
   display: inline-block;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -366,7 +401,7 @@ button:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  padding: 1.4rem 1.6rem;
+  padding: 1.75rem 2rem;
   min-height: 200px;
 }
 
@@ -387,34 +422,39 @@ button:hover {
   border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;
   font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .btn-add-order {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #0a1013;
+  background: var(--color-primary);
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.55rem 1rem;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+}
+
+.btn-add-order:hover {
+  background: var(--color-primary-hover);
 }
 
 .section-heading {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  margin: 1.5rem 0 0.75rem;
-  padding-bottom: 0.4rem;
+  margin: 1.75rem 0 0.85rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-border);
 }
 
 /* ---------- Repair order card ---------- */
 
 .repair-order+.repair-order {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
+  margin-top: 1.75rem;
+  padding-top: 1.75rem;
   border-top: 1px solid var(--color-border);
 }
 
@@ -433,15 +473,17 @@ button:hover {
 }
 
 .repair-order__title {
-  margin: 0 0 0.2rem;
-  font-size: 1.05rem;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
 .repair-order__meta {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin-bottom: 0.9rem;
+  font-size: 0.84rem;
+  margin-bottom: 1rem;
 }
 
 .btn-close-order {
@@ -450,7 +492,7 @@ button:hover {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   padding: 0.35rem 0.8rem;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   white-space: nowrap;
 }
 
@@ -460,7 +502,7 @@ button:hover {
   border: 1px solid var(--status-red-text);
   border-radius: var(--radius-sm);
   padding: 0.35rem 0.8rem;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
 }
 
 .edit-order-form {
@@ -479,7 +521,7 @@ button:hover {
 .repair-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: 0.87rem;
 }
 
 .repair-table th {
@@ -491,7 +533,7 @@ button:hover {
 }
 
 .repair-table td {
-  padding: 0.6rem 0.5rem;
+  padding: 0.65rem 0.5rem;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
 }
@@ -502,7 +544,7 @@ button:hover {
 
 .part-number {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.82rem;
+  font-size: 0.81rem;
   color: var(--color-text-muted);
 }
 
@@ -510,7 +552,7 @@ button:hover {
   border: none;
   border-radius: 999px;
   padding: 0.25rem 0.5rem;
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   font-weight: 500;
 }
 
@@ -547,14 +589,14 @@ button:hover {
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 1rem 1.1rem;
+  padding: 1.1rem 1.2rem;
 }
 
 .info-box h3 {
   margin: 0 0 0.6rem;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -562,7 +604,7 @@ button:hover {
 .info-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.88rem;
+  font-size: 0.87rem;
   padding: 0.3rem 0;
 }
 
@@ -581,19 +623,19 @@ button:hover {
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 0.75rem 0.5rem;
+  padding: 0.8rem 0.5rem;
   text-align: center;
 }
 
 .stat-box__value {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
 .stat-box__label {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--color-text-muted);
   margin-top: 0.2rem;
 }
@@ -612,9 +654,9 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  padding: 0.65rem 0.25rem;
+  padding: 0.7rem 0.25rem;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .history-row:hover {
@@ -667,7 +709,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   background: var(--color-surface-2);
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   font-size: 0.72rem;
@@ -700,7 +742,7 @@ button:hover {
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 9, 0.9);
+  background: rgba(2, 3, 5, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -719,9 +761,9 @@ button:hover {
   position: fixed;
   top: 1.25rem;
   right: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   width: 40px;
   height: 40px;
@@ -733,7 +775,7 @@ button:hover {
 .admin-panel {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 3rem;
+  padding: 1.75rem 1.5rem 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -745,16 +787,16 @@ button:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem 1.75rem;
 }
 
 .admin-section h2 {
-  margin: 0 0 1rem;
+  margin: 0 0 1.1rem;
   padding-bottom: 0.6rem;
   border-bottom: 1px solid var(--color-border);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -762,7 +804,7 @@ button:hover {
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: 0.87rem;
 }
 
 .admin-table th {
@@ -785,10 +827,14 @@ button:hover {
 
 .admin-table button {
   background: var(--color-primary);
-  color: #0a1013;
+  color: #ffffff;
   border: none;
   padding: 0.3rem 0.7rem;
   font-weight: 600;
+}
+
+.admin-table button:hover {
+  background: var(--color-primary-hover);
 }
 
 .admin-form {
@@ -805,10 +851,14 @@ button:hover {
 
 .admin-form button {
   background: var(--color-primary);
-  color: #0a1013;
+  color: #ffffff;
   border: none;
   padding: 0.4rem 0.9rem;
   font-weight: 600;
+}
+
+.admin-form button:hover {
+  background: var(--color-primary-hover);
 }
 
 .intake-hint {
@@ -822,7 +872,7 @@ button:hover {
   top: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--status-green-bg);
+  background: var(--color-surface-2);
   color: var(--status-green-text);
   border: 1px solid var(--status-green-text);
   border-radius: var(--radius-sm);
@@ -873,13 +923,17 @@ button:hover {
 }
 
 .intake-submit {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #0a1013;
+  background: var(--color-primary);
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.7rem 1.2rem;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 600;
+}
+
+.intake-submit:hover {
+  background: var(--color-primary-hover);
 }
 
 .intake-message {
@@ -902,7 +956,7 @@ button:hover {
 .history-page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 3rem;
+  padding: 1.75rem 1.5rem 3rem;
 }
 
 .btn-back {
@@ -910,18 +964,20 @@ button:hover {
 }
 
 .history-page__header h1 {
-  margin: 0 0 0.2rem;
-  font-size: 1.3rem;
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .history-page__header p {
   margin: 0 0 1.5rem;
   color: var(--color-text-muted);
-  font-size: 0.88rem;
+  font-size: 0.87rem;
 }
 
 .history-stats--big .stat-box__value {
-  font-size: 1.6rem;
+  font-size: 1.55rem;
 }
 
 .timeline {
@@ -972,7 +1028,7 @@ button:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  padding: 1.1rem 1.25rem;
+  padding: 1.2rem 1.3rem;
 }
 
 .timeline-card__header {
@@ -989,15 +1045,16 @@ button:hover {
 
 .timeline-card__title {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
 }
 
 .timeline-card__meta {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   margin-bottom: 0.8rem;
 }
 
+/* ---------- History search page ---------- */
 
 .history-search-page {
   max-width: 600px;
@@ -1008,7 +1065,9 @@ button:hover {
 
 .history-search-page h1 {
   margin: 0 0 0.3rem;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .history-search-page__hint {
@@ -1055,6 +1114,7 @@ button:hover {
   white-space: nowrap;
 }
 
+/* ---------- Import page ---------- */
 
 .import-table-wrap {
   overflow-x: auto;
@@ -1063,36 +1123,4 @@ button:hover {
 
 .import-table-wrap table {
   min-width: 900px;
-}
-
-
-.sidebar-filter {
-  width: 100%;
-  padding: 0.4rem 0.6rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.8rem;
-}
-
-
-.month-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.month-group__header {
-  display: flex;
-  justify-content: space-between;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.7rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.month-group__count {
-  color: var(--color-text-muted);
-  font-weight: 400;
-  font-size: 0.75rem;
 }

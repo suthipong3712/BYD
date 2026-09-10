@@ -591,8 +591,8 @@ def import_commit(
         db.add(order)
         imported += 1
 
-        db.commit()
-        return {"imported": imported, "skipped": skipped, "duplicates": duplicates}
+    db.commit()
+    return {"imported": imported, "skipped": skipped, "duplicates": duplicates}
 
 
 @app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
