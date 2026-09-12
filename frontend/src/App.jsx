@@ -100,6 +100,9 @@ function App() {
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historySearchVehicle, setHistorySearchVehicle] = useState(null);
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  const [quickSearchQuery, setQuickSearchQuery] = useState("");
+  const [quickSearchSelected, setQuickSearchSelected] = useState(null);
 
   const token = auth?.token;
   const role = auth?.user?.role;
@@ -254,6 +257,21 @@ function App() {
       (o) => o.category === category && o.key === key,
     );
     return found ?? { label: key, color: "muted" };
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        setQuickSearchOpen(false);
+        setQuickSearchSelected(null);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  if (!auth) {
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   if (!auth) {
@@ -563,6 +581,18 @@ function App() {
           )}
         </div>
         <div className="app-header__user">
+          <button
+            className="quick-search-btn"
+            title="ค้นหาด่วน"
+            onClick={() => {
+              refreshVehicleList();
+              setQuickSearchOpen(true);
+              setQuickSearchSelected(null);
+              setQuickSearchQuery("");
+            }}
+          >
+            🔍
+          </button>
           <span>
             {auth.user.username} · {auth.user.role}
           </span>
@@ -571,6 +601,27 @@ function App() {
           </button>
         </div>
       </header>
+
+      {quickSearchOpen && (
+        <QuickSearchModal
+          vehicles={vehicles}
+          query={quickSearchQuery}
+          onQueryChange={setQuickSearchQuery}
+          selected={quickSearchSelected}
+          onSelect={setQuickSearchSelected}
+          optionMeta={optionMeta}
+          onClose={() => {
+            setQuickSearchOpen(false);
+            setQuickSearchSelected(null);
+          }}
+          onViewFullHistory={(vehicle) => {
+            setQuickSearchOpen(false);
+            setQuickSearchSelected(null);
+            setHistorySearchVehicle(vehicle);
+            setView("historySearch");
+          }}
+        />
+      )}
 
       {view === "admin" && role === "admin" && <AdminPanel token={token} />}
       {view === "import" && role === "admin" && <ImportPage token={token} />}
@@ -645,7 +696,7 @@ function App() {
       )}
 
       {view === "dashboard" && (
-        <div className="layout">
+        <div className={`layout ${selectedId !== null ? "has-selection" : ""}`}>
           <div className="sidebar">
             <input
               className="sidebar-search"
@@ -737,6 +788,16 @@ function App() {
           </div>
 
           <div className="detail-panel">
+            <button
+              className="mobile-back-btn"
+              onClick={() => {
+                setSelectedId(null);
+                setDetail(null);
+              }}
+            >
+              ← กลับไปรายการรถ
+            </button>
+
             {detail === null && (
               <p className="detail-empty">เลือกรถจากรายการทางซ้ายก่อน</p>
             )}
@@ -915,6 +976,118 @@ function VehicleCard({ vehicle, selectedId, optionMeta, onSelect }) {
       </div>
       <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
     </button>
+  );
+}
+
+function QuickSearchModal({
+  vehicles,
+  query,
+  onQueryChange,
+  selected,
+  onSelect,
+  optionMeta,
+  onClose,
+  onViewFullHistory,
+}) {
+  const q = query.trim().toLowerCase();
+  const results =
+    q === ""
+      ? []
+      : vehicles.filter(
+          (v) =>
+            v.license_plate.toLowerCase().includes(q) ||
+            v.vin.toLowerCase().includes(q),
+        );
+
+  const openItems = selected
+    ? selected.repair_orders
+        .filter((o) => o.status === "open")
+        .flatMap((o) => o.items)
+    : [];
+  const totalVisits = selected ? selected.repair_orders.length : 0;
+
+  return (
+    <div className="quick-search-overlay" onClick={onClose}>
+      <div className="quick-search-box" onClick={(e) => e.stopPropagation()}>
+        <input
+          className="quick-search-input"
+          placeholder="พิมพ์ทะเบียน หรือ VIN..."
+          value={query}
+          onChange={(e) => {
+            onQueryChange(e.target.value);
+            onSelect(null);
+          }}
+          autoFocus
+        />
+
+        {!selected && q !== "" && results.length === 0 && (
+          <p className="quick-search-empty">ไม่พบรถที่ตรงกับ "{query}"</p>
+        )}
+
+        {!selected && results.length > 0 && (
+          <div className="quick-search-results">
+            {results.map((v) => (
+              <button
+                key={v.id}
+                className="quick-search-result"
+                onClick={() => onSelect(v)}
+              >
+                <span className="vehicle-card__plate">{v.license_plate}</span>
+                <span className="vehicle-card__meta">
+                  {v.model} · {v.customer_name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {selected && (
+          <div className="quick-search-summary">
+            <div className="quick-search-summary__header">
+              <div>
+                <div className="vehicle-card__plate">
+                  {selected.license_plate}
+                </div>
+                <div className="vehicle-card__meta">
+                  {selected.model} · {selected.customer_name}
+                </div>
+              </div>
+              <span className="quick-search-summary__visits">
+                เข้าซ่อมมาแล้ว {totalVisits} ครั้ง
+              </span>
+            </div>
+
+            {openItems.length === 0 && (
+              <p className="quick-search-empty">ไม่มีงานค้างอยู่ตอนนี้</p>
+            )}
+
+            {openItems.length > 0 && (
+              <ul className="quick-search-item-list">
+                {openItems.map((item) => {
+                  const jobMeta = optionMeta("job_status", item.job_status);
+                  return (
+                    <li key={item.id}>
+                      <span>{item.description}</span>
+                      <Badge color={jobMeta.color}>{jobMeta.label}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="quick-search-summary__actions">
+              <button onClick={() => onSelect(null)}>← ค้นหาใหม่</button>
+              <button
+                className="btn-view-history"
+                onClick={() => onViewFullHistory(selected)}
+              >
+                ดูประวัติทั้งหมดแบบเต็ม →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

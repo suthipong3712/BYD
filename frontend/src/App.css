@@ -1124,3 +1124,213 @@ button:hover {
 .import-table-wrap table {
   min-width: 900px;
 }
+
+
+.quick-search-btn {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.quick-search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 3, 5, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 1500;
+}
+
+.quick-search-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  width: 480px;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.quick-search-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+}
+
+.quick-search-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.quick-search-results {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.quick-search-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+}
+
+.quick-search-result:hover {
+  border-color: var(--color-primary);
+}
+
+.quick-search-summary {
+  margin-top: 0.75rem;
+}
+
+.quick-search-summary__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.quick-search-summary__visits {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.quick-search-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quick-search-item-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.quick-search-summary__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+
+.mobile-back-btn {
+  display: none;
+}
+
+.repair-table-wrap,
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+@media (max-width: 860px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .app-header__nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .layout {
+    flex-direction: column;
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+
+  .vehicle-list {
+    max-height: 55vh;
+  }
+
+  .layout.has-selection .sidebar {
+    display: none;
+  }
+
+  .layout:not(.has-selection) .detail-panel {
+    display: none;
+  }
+
+  .mobile-back-btn {
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .detail-panel {
+    padding: 1.1rem 1rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-stats {
+    flex-wrap: wrap;
+  }
+
+  .history-stats .stat-box {
+    min-width: calc(50% - 0.4rem);
+  }
+
+  .repair-order__header {
+    flex-direction: column;
+  }
+
+  .repair-order__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .repair-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .intake-item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .order-photos {
+    flex-wrap: wrap;
+  }
+}
