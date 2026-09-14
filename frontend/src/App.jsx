@@ -94,6 +94,7 @@ function App() {
     job_type: "warranty",
     diagnosis_result: "",
     job_card_number: "",
+    appointment_date: "",
   });
   const [addingOrder, setAddingOrder] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -174,11 +175,22 @@ function App() {
     }).then(refreshDetail);
   }
 
-  function updatePartsStatus(itemId, orderStatus) {
+  function updateClaimStatus(itemId, claimStatus) {
+    authFetch(`/repair-items/${itemId}/claim-status`, token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claim_status: claimStatus }),
+    }).then(refreshDetail);
+  }
+
+  function updatePartsStatus(itemId, orderStatus, expectedArrival) {
     authFetch(`/repair-items/${itemId}/parts-status`, token, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_status: orderStatus }),
+      body: JSON.stringify({
+        order_status: orderStatus,
+        expected_arrival: expectedArrival || null,
+      }),
     }).then(refreshDetail);
   }
 
@@ -223,6 +235,7 @@ function App() {
       job_type: order.job_type,
       diagnosis_result: order.diagnosis_result ?? "",
       job_card_number: order.job_card_number ?? "",
+      appointment_date: order.appointment_date ?? "",
     });
   }
 
@@ -345,6 +358,8 @@ function App() {
                 เปิดงานวันที่ {order.open_date}
                 {order.mileage != null &&
                   ` · ${order.mileage.toLocaleString()} กม.`}
+                {order.appointment_date &&
+                  ` · นัดหมายวันที่ ${order.appointment_date}`}
               </div>
             )}
 
@@ -379,6 +394,19 @@ function App() {
                     })
                   }
                 />
+                <label className="edit-order-form__label">
+                  วันที่นัด
+                  <input
+                    type="date"
+                    value={editForm.appointment_date}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        appointment_date: e.target.value,
+                      })
+                    }
+                  />
+                </label>
                 <button onClick={() => saveEdit(order)}>บันทึก</button>
                 <button onClick={() => setEditingOrderId(null)}>ยกเลิก</button>
               </div>
@@ -436,6 +464,7 @@ function App() {
             <tr>
               <th>รายการซ่อม</th>
               <th>อะไหล่</th>
+              {order.job_type === "warranty" && <th>สถานะเคลม BYD</th>}
               <th>สถานะอะไหล่</th>
               <th>ช่าง</th>
               <th>สถานะงาน</th>
@@ -451,6 +480,44 @@ function App() {
                 <tr key={item.id}>
                   <td>{item.description}</td>
                   <td className="part-number">{item.part_number ?? "-"}</td>
+                  {order.job_type === "warranty" && (
+                    <td>
+                      <select
+                        className={`status-select status-select--${partMeta.color}`}
+                        value={partKey}
+                        disabled={!isOpen || !canEditParts}
+                        onChange={(e) =>
+                          updatePartsStatus(
+                            item.id,
+                            e.target.value,
+                            item.parts_request?.expected_arrival,
+                          )
+                        }
+                      >
+                        {optionsFor("parts_status").map((opt) => (
+                          <option key={opt.key} value={opt.key}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      {canEditParts && isOpen ? (
+                        <input
+                          type="date"
+                          className="expected-arrival-input"
+                          value={item.parts_request?.expected_arrival ?? ""}
+                          onChange={(e) =>
+                            updatePartsStatus(item.id, partKey, e.target.value)
+                          }
+                        />
+                      ) : (
+                        item.parts_request?.expected_arrival && (
+                          <div className="expected-arrival-text">
+                            คาดว่ามา {item.parts_request.expected_arrival}
+                          </div>
+                        )
+                      )}
+                    </td>
+                  )}
                   <td>
                     <select
                       className={`status-select status-select--${partMeta.color}`}

@@ -110,6 +110,10 @@ class RepairItem(Base):
     # ค่าที่ใส่ได้มาจากตาราง StatusOption (category="job_status")
     job_status: Mapped[str] = mapped_column(String(50), default="not_started")
 
+    # สถานะการส่งเรื่องเคลมให้ BYD อนุมัติ — เกี่ยวข้องเฉพาะใบสั่งซ่อมประเภท Warranty
+    # ค่าที่ใส่ได้มาจากตาราง StatusOption (category="claim_status")
+    claim_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     repair_order: Mapped["RepairOrder"] = relationship(back_populates="items")
     technician: Mapped[Optional["Technician"]] = relationship(back_populates="repair_items")
     parts_request: Mapped[Optional["PartsRequest"]] = relationship(

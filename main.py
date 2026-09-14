@@ -245,6 +245,24 @@ def update_job_status(
 
 
 @app.patch(
+    "/repair-items/{item_id}/claim-status", response_model=schemas.RepairItemRead
+)
+def update_claim_status(
+    item_id: int,
+    payload: schemas.ClaimStatusUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("parts")),
+):
+    item = db.query(RepairItem).filter(RepairItem.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Repair item not found")
+    item.claim_status = payload.claim_status
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@app.patch(
     "/repair-items/{item_id}/parts-status", response_model=schemas.RepairItemRead
 )
 def update_parts_status(
@@ -264,6 +282,9 @@ def update_parts_status(
 
     if payload.order_status == "ordered":
         item.parts_request.ordered_date = date.today()
+
+    if payload.expected_arrival is not None:
+        item.parts_request.expected_arrival = payload.expected_arrival
 
     db.commit()
     db.refresh(item)
@@ -530,7 +551,9 @@ def import_commit(
     # สแนปช็อตข้อมูลที่มีอยู่แล้ว "ก่อน" เริ่มนำเข้าไฟล์นี้ — เช็คซ้ำกับชุดนี้เท่านั้น
     # ไม่เอาไปเทียบกับแถวที่เพิ่งสร้างขึ้นเองในลูปนี้ (กันเข้าใจผิดว่าแถวคล้ายกันในไฟล์เดียวกันคือของซ้ำ)
     existing_signatures = set(
-        db.query(RepairOrder.vehicle_id, RepairOrder.open_date, RepairOrder.diagnosis_result).all()
+        db.query(
+            RepairOrder.vehicle_id, RepairOrder.open_date, RepairOrder.diagnosis_result
+        ).all()
     )
 
     for row in payload.rows:
@@ -541,7 +564,11 @@ def import_commit(
         vehicle = db.query(Vehicle).filter(Vehicle.vin == row.vin).first()
 
         if vehicle is not None:
-            signature = (vehicle.id, date.fromisoformat(row.open_date), row.diagnosis_result)
+            signature = (
+                vehicle.id,
+                date.fromisoformat(row.open_date),
+                row.diagnosis_result,
+            )
             if signature in existing_signatures:
                 duplicates += 1
                 continue

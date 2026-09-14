@@ -40,6 +40,7 @@ class RepairItemRead(BaseModel):
     part_number: Optional[str] = None
     repair_time_estimate: Optional[str] = None
     job_status: str
+    claim_status: Optional[str] = None
     technician: Optional[TechnicianRead] = None
     parts_request: Optional[PartsRequestRead] = None
 
@@ -77,8 +78,13 @@ class JobStatusUpdate(BaseModel):
     job_status: str
 
 
+class ClaimStatusUpdate(BaseModel):
+    claim_status: str
+
+
 class PartsStatusUpdate(BaseModel):
     order_status: str
+    expected_arrival: Optional[date] = None
 
 
 class StatusOptionRead(BaseModel):
@@ -111,6 +117,7 @@ class RepairOrderUpdate(BaseModel):
     diagnosis_result: Optional[str] = None
     job_card_number: Optional[str] = None
     mileage: Optional[int] = None
+    appointment_date: Optional[date] = None
 
 
 class CloseOrderRequest(BaseModel):

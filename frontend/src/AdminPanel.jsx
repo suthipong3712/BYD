@@ -6,6 +6,7 @@ const CATEGORY_LABEL = {
   job_status: "สถานะงานช่าง",
   parts_status: "สถานะอะไหล่",
   vehicle_summary: "สถานะรวมของรถ (แสดงในรายการรถ)",
+  claim_status: "สถานะเคลม BYD (เฉพาะงาน Warranty)",
 };
 const ROLE_OPTIONS = ["admin", "sa", "parts", "technician"];
 
@@ -462,71 +463,77 @@ function AdminPanel({ token }) {
         </form>
       </div>
 
-      {["job_status", "parts_status", "vehicle_summary"].map((category) => (
-        <div key={category} className="admin-section">
-          <h2>{CATEGORY_LABEL[category]}</h2>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>ข้อความที่แสดง</th>
-                <th>สี</th>
-                <th>ลำดับ</th>
-                <th></th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {options
-                .filter((o) => o.category === category)
-                .sort((a, b) => a.sort_order - b.sort_order)
-                .map((o) => (
-                  <tr key={o.id}>
-                    <td className="part-number">{o.key}</td>
-                    <td>
-                      <input
-                        value={o.label}
-                        onChange={(e) =>
-                          updateLocalOption(o.id, "label", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <select
-                        value={o.color}
-                        onChange={(e) =>
-                          updateLocalOption(o.id, "color", e.target.value)
-                        }
-                      >
-                        {COLOR_OPTIONS.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        style={{ width: "4rem" }}
-                        value={o.sort_order}
-                        onChange={(e) =>
-                          updateLocalOption(o.id, "sort_order", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <button onClick={() => saveOption(o)}>บันทึก</button>
-                    </td>
-                    <td>
-                      <button onClick={() => deleteOption(o)}>ลบ</button>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+      {["job_status", "parts_status", "vehicle_summary", "claim_status"].map(
+        (category) => (
+          <div key={category} className="admin-section">
+            <h2>{CATEGORY_LABEL[category]}</h2>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>ข้อความที่แสดง</th>
+                  <th>สี</th>
+                  <th>ลำดับ</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {options
+                  .filter((o) => o.category === category)
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map((o) => (
+                    <tr key={o.id}>
+                      <td className="part-number">{o.key}</td>
+                      <td>
+                        <input
+                          value={o.label}
+                          onChange={(e) =>
+                            updateLocalOption(o.id, "label", e.target.value)
+                          }
+                        />
+                      </td>
+                      <td>
+                        <select
+                          value={o.color}
+                          onChange={(e) =>
+                            updateLocalOption(o.id, "color", e.target.value)
+                          }
+                        >
+                          {COLOR_OPTIONS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          style={{ width: "4rem" }}
+                          value={o.sort_order}
+                          onChange={(e) =>
+                            updateLocalOption(
+                              o.id,
+                              "sort_order",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </td>
+                      <td>
+                        <button onClick={() => saveOption(o)}>บันทึก</button>
+                      </td>
+                      <td>
+                        <button onClick={() => deleteOption(o)}>ลบ</button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        ),
+      )}
 
       <div className="admin-section">
         <h2>เพิ่มตัวเลือกสถานะใหม่</h2>
@@ -540,6 +547,7 @@ function AdminPanel({ token }) {
             <option value="job_status">สถานะงานช่าง</option>
             <option value="parts_status">สถานะอะไหล่</option>
             <option value="vehicle_summary">สถานะรวมของรถ</option>
+            <option value="claim_status">สถานะเคลม BYD</option>
           </select>
           <input
             placeholder="key (เช่น waiting_customer)"
