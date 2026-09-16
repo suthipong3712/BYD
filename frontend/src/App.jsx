@@ -100,6 +100,7 @@ function App() {
   });
   const [addingOrder, setAddingOrder] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [toast, setToast] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historySearchVehicle, setHistorySearchVehicle] = useState(null);
@@ -257,7 +258,11 @@ function App() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notes }),
-    }).then(refreshDetail);
+    }).then(() => {
+      refreshDetail();
+      setToast("บันทึกหมายเหตุแล้ว");
+      setTimeout(() => setToast(null), 2000);
+    });
   }
 
   function uploadPhoto(orderId, kind, file) {
@@ -491,9 +496,10 @@ function App() {
                   <td>
                     {item.description}
                     {canManage && isOpen ? (
-                      <input
+                      <textarea
                         className="item-notes-input"
                         placeholder="+ หมายเหตุ"
+                        rows={2}
                         defaultValue={item.notes ?? ""}
                         onBlur={(e) => {
                           if (e.target.value !== (item.notes ?? "")) {
@@ -1064,6 +1070,8 @@ function App() {
           </div>
         </div>
       )}
+
+      {toast && <div className="admin-toast">✓ {toast}</div>}
 
       {lightboxSrc !== null && (
         <div className="lightbox" onClick={() => setLightboxSrc(null)}>

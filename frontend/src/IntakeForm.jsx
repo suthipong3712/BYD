@@ -199,8 +199,10 @@ function IntakeForm({ token, onCreated }) {
                 updateItem(index, "repair_time_estimate", e.target.value)
               }
             />
-            <input
+            <textarea
+              className="item-notes-textarea"
               placeholder="หมายเหตุเพิ่มเติม"
+              rows={2}
               value={item.notes ?? ""}
               onChange={(e) => updateItem(index, "notes", e.target.value)}
             />
