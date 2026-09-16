@@ -7,13 +7,14 @@ Vehicle -> RepairOrder -> RepairItem -> PartsRequest
 StatusOption: ค่าสถานะ (job_status / parts order_status) ที่แอดมิน
 แก้ไขได้จากหน้าเว็บ แทนที่จะต้องแก้ไฟล์นี้ทุกครั้ง
 """
+
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from enum import Enum as PyEnum
 from typing import Optional
 
-from sqlalchemy import Date, Enum, ForeignKey, Integer, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -26,18 +27,20 @@ class JobType(str, PyEnum):
     CUSTOMER_PAY = "customer_pay"
 
 
-
-
-
 class StatusOption(Base):
     """เช่น category='parts_status' key='not_ordered' label='ยังไม่สั่ง' color='red'"""
+
     __tablename__ = "status_options"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    category: Mapped[str] = mapped_column(String(30), index=True)  # "job_status" | "parts_status"
+    category: Mapped[str] = mapped_column(
+        String(30), index=True
+    )  # "job_status" | "parts_status"
     key: Mapped[str] = mapped_column(String(50))
     label: Mapped[str] = mapped_column(String(100))
-    color: Mapped[str] = mapped_column(String(20), default="muted")  # green/amber/red/muted
+    color: Mapped[str] = mapped_column(
+        String(20), default="muted"
+    )  # green/amber/red/muted
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
@@ -71,8 +74,25 @@ class VehicleModel(Base):
     name: Mapped[str] = mapped_column(String(50), unique=True)
     active: Mapped[bool] = mapped_column(default=True)
     sort_order: Mapped[int] = mapped_column(default=0)
-    
-    
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    username: Mapped[str] = mapped_column(
+        String(50)
+    )  # เก็บชื่อไว้เผื่อ user ถูกลบทีหลัง
+    action: Mapped[str] = mapped_column(String(50))
+    entity_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class RepairOrder(Base):
     __tablename__ = "repair_orders"
 
@@ -103,8 +123,12 @@ class RepairItem(Base):
     description: Mapped[str] = mapped_column(String(200))
     part_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     part_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    repair_time_estimate: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    technician_id: Mapped[Optional[int]] = mapped_column(ForeignKey("technicians.id"), nullable=True)
+    repair_time_estimate: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    technician_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("technicians.id"), nullable=True
+    )
 
     # เดิมเป็น Enum(JobStatus) ตอนนี้เปลี่ยนเป็น string ธรรมดา
     # ค่าที่ใส่ได้มาจากตาราง StatusOption (category="job_status")
@@ -114,19 +138,24 @@ class RepairItem(Base):
     # ค่าที่ใส่ได้มาจากตาราง StatusOption (category="claim_status")
     claim_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     repair_order: Mapped["RepairOrder"] = relationship(back_populates="items")
-    technician: Mapped[Optional["Technician"]] = relationship(back_populates="repair_items")
+    technician: Mapped[Optional["Technician"]] = relationship(
+        back_populates="repair_items"
+    )
     parts_request: Mapped[Optional["PartsRequest"]] = relationship(
         back_populates="repair_item", uselist=False, cascade="all, delete-orphan"
     )
-
 
 
 class PartsRequest(Base):
     __tablename__ = "parts_requests"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    repair_item_id: Mapped[int] = mapped_column(ForeignKey("repair_items.id"), unique=True)
+    repair_item_id: Mapped[int] = mapped_column(
+        ForeignKey("repair_items.id"), unique=True
+    )
 
     # เดิมเป็น Enum(PartOrderStatus) ตอนนี้เปลี่ยนเป็น string ธรรมดา
     # ค่าที่ใส่ได้มาจากตาราง StatusOption (category="parts_status")
@@ -136,11 +165,11 @@ class PartsRequest(Base):
     expected_arrival: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     repair_item: Mapped["RepairItem"] = relationship(back_populates="parts_request")
-    
 
 
 class User(Base):
     """role: 'admin' | 'parts' | 'technician'"""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)

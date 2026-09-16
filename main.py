@@ -18,6 +18,7 @@ from auth import (
 from database import SessionLocal, get_db
 from import_utils import parse_workbook
 from models import (
+    AuditLog,
     AuthToken,
     JobType,
     PartsRequest,
@@ -36,6 +37,19 @@ os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 ALLOWED_PHOTO_KINDS = {"car", "vin"}
+
+
+def log_action(db, user, action, entity_type=None, entity_id=None, details=None):
+    db.add(
+        AuditLog(
+            user_id=user.id,
+            username=user.username,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=details,
+        )
+    )
 
 
 # --- Authentication ---
@@ -60,6 +74,14 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+# --- Admin เท่านั้น: Audit Log ---
+
+
+@app.get("/audit-logs", response_model=list[schemas.AuditLogRead])
+def list_audit_logs(db: Session = Depends(get_db), _: User = Depends(require_roles())):
+    return db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(300).all()
+
+
 # --- Admin เท่านั้น: จัดการผู้ใช้งาน ---
 
 
@@ -72,7 +94,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_roles())
 def create_user(
     payload: schemas.UserCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing:
@@ -84,6 +106,15 @@ def create_user(
         active=True,
     )
     db.add(user)
+    db.flush()
+    log_action(
+        db,
+        current_user,
+        "create_user",
+        "user",
+        user.id,
+        f"username={user.username}, role={user.role}",
+    )
     db.commit()
     db.refresh(user)
     return user
@@ -94,7 +125,7 @@ def update_user(
     user_id: int,
     payload: schemas.UserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -107,6 +138,9 @@ def update_user(
     for field, value in data.items():
         setattr(user, field, value)
 
+    log_action(
+        db, current_user, "update_user", "user", user.id, f"username={user.username}"
+    )
     db.commit()
     db.refresh(user)
     return user
@@ -114,7 +148,9 @@ def update_user(
 
 @app.delete("/users/{user_id}")
 def delete_user(
-    user_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles()),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -127,6 +163,9 @@ def delete_user(
                 status_code=400, detail="ต้องมีบัญชี admin เหลืออย่างน้อย 1 คนเสมอ"
             )
 
+    log_action(
+        db, current_user, "delete_user", "user", user.id, f"username={user.username}"
+    )
     db.delete(user)
     db.commit()
     return {"ok": True}
@@ -146,10 +185,14 @@ def list_vehicle_models(
 def create_vehicle_model(
     payload: schemas.VehicleModelCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     model = VehicleModel(name=payload.name, active=True)
     db.add(model)
+    db.flush()
+    log_action(
+        db, current_user, "create_vehicle_model", "vehicle_model", model.id, model.name
+    )
     db.commit()
     db.refresh(model)
     return model
@@ -160,13 +203,16 @@ def update_vehicle_model(
     model_id: int,
     payload: schemas.VehicleModelUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     model = db.query(VehicleModel).filter(VehicleModel.id == model_id).first()
     if model is None:
         raise HTTPException(status_code=404, detail="Vehicle model not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(model, field, value)
+    log_action(
+        db, current_user, "update_vehicle_model", "vehicle_model", model.id, model.name
+    )
     db.commit()
     db.refresh(model)
     return model
@@ -230,18 +276,46 @@ def update_job_status(
     item_id: int,
     payload: schemas.JobStatusUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("technician")),
+    current_user: User = Depends(require_roles("technician")),
 ):
     item = db.query(RepairItem).filter(RepairItem.id == item_id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Repair item not found")
+    old_status = item.job_status
     item.job_status = payload.job_status
+    log_action(
+        db,
+        current_user,
+        "update_job_status",
+        "repair_item",
+        item.id,
+        f"{old_status} → {payload.job_status}",
+    )
     db.commit()
     db.refresh(item)
     return item
 
 
-# --- ฝ่ายอะไหล่เท่านั้น: อัปเดตสถานะอะไหล่ ---
+# --- ฝ่ายอะไหล่เท่านั้น: อัปเดตสถานะเคลม BYD ---
+
+
+@app.patch("/repair-items/{item_id}/notes", response_model=schemas.RepairItemRead)
+def update_item_notes(
+    item_id: int,
+    payload: schemas.ItemNotesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("sa")),
+):
+    item = db.query(RepairItem).filter(RepairItem.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Repair item not found")
+    item.notes = payload.notes
+    log_action(
+        db, current_user, "update_item_notes", "repair_item", item.id, payload.notes
+    )
+    db.commit()
+    db.refresh(item)
+    return item
 
 
 @app.patch(
@@ -251,15 +325,27 @@ def update_claim_status(
     item_id: int,
     payload: schemas.ClaimStatusUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("parts")),
+    current_user: User = Depends(require_roles("parts")),
 ):
     item = db.query(RepairItem).filter(RepairItem.id == item_id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Repair item not found")
+    old_status = item.claim_status
     item.claim_status = payload.claim_status
+    log_action(
+        db,
+        current_user,
+        "update_claim_status",
+        "repair_item",
+        item.id,
+        f"{old_status} → {payload.claim_status}",
+    )
     db.commit()
     db.refresh(item)
     return item
+
+
+# --- ฝ่ายอะไหล่เท่านั้น: อัปเดตสถานะอะไหล่ ---
 
 
 @app.patch(
@@ -269,11 +355,13 @@ def update_parts_status(
     item_id: int,
     payload: schemas.PartsStatusUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("parts")),
+    current_user: User = Depends(require_roles("parts")),
 ):
     item = db.query(RepairItem).filter(RepairItem.id == item_id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Repair item not found")
+
+    old_status = item.parts_request.order_status if item.parts_request else None
 
     if item.parts_request is None:
         item.parts_request = PartsRequest(order_status=payload.order_status)
@@ -286,6 +374,14 @@ def update_parts_status(
     if payload.expected_arrival is not None:
         item.parts_request.expected_arrival = payload.expected_arrival
 
+    log_action(
+        db,
+        current_user,
+        "update_parts_status",
+        "repair_item",
+        item.id,
+        f"{old_status} → {payload.order_status}",
+    )
     db.commit()
     db.refresh(item)
     return item
@@ -298,10 +394,19 @@ def update_parts_status(
 def create_status_option(
     payload: schemas.StatusOptionCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     option = StatusOption(**payload.model_dump())
     db.add(option)
+    db.flush()
+    log_action(
+        db,
+        current_user,
+        "create_status_option",
+        "status_option",
+        option.id,
+        f"{option.category}:{option.key}",
+    )
     db.commit()
     db.refresh(option)
     return option
@@ -312,13 +417,21 @@ def update_status_option(
     option_id: int,
     payload: schemas.StatusOptionUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     option = db.query(StatusOption).filter(StatusOption.id == option_id).first()
     if option is None:
         raise HTTPException(status_code=404, detail="Status option not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(option, field, value)
+    log_action(
+        db,
+        current_user,
+        "update_status_option",
+        "status_option",
+        option.id,
+        f"{option.category}:{option.key}",
+    )
     db.commit()
     db.refresh(option)
     return option
@@ -326,11 +439,21 @@ def update_status_option(
 
 @app.delete("/status-options/{option_id}")
 def delete_status_option(
-    option_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles())
+    option_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles()),
 ):
     option = db.query(StatusOption).filter(StatusOption.id == option_id).first()
     if option is None:
         raise HTTPException(status_code=404, detail="Status option not found")
+    log_action(
+        db,
+        current_user,
+        "delete_status_option",
+        "status_option",
+        option.id,
+        f"{option.category}:{option.key}",
+    )
     db.delete(option)
     db.commit()
     return {"ok": True}
@@ -343,10 +466,19 @@ def delete_status_option(
 def create_technician(
     payload: schemas.TechnicianCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     technician = Technician(name=payload.name, active=True)
     db.add(technician)
+    db.flush()
+    log_action(
+        db,
+        current_user,
+        "create_technician",
+        "technician",
+        technician.id,
+        technician.name,
+    )
     db.commit()
     db.refresh(technician)
     return technician
@@ -357,13 +489,21 @@ def update_technician(
     technician_id: int,
     payload: schemas.TechnicianUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     technician = db.query(Technician).filter(Technician.id == technician_id).first()
     if technician is None:
         raise HTTPException(status_code=404, detail="Technician not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(technician, field, value)
+    log_action(
+        db,
+        current_user,
+        "update_technician",
+        "technician",
+        technician.id,
+        technician.name,
+    )
     db.commit()
     db.refresh(technician)
     return technician
@@ -373,7 +513,7 @@ def update_technician(
 def delete_technician(
     technician_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     technician = db.query(Technician).filter(Technician.id == technician_id).first()
     if technician is None:
@@ -388,19 +528,27 @@ def delete_technician(
             detail=f"ช่างคนนี้มีประวัติงานผูกอยู่ {used_count} รายการ ลบไม่ได้ กรุณาปิดใช้งานแทน",
         )
 
+    log_action(
+        db,
+        current_user,
+        "delete_technician",
+        "technician",
+        technician.id,
+        technician.name,
+    )
     db.delete(technician)
     db.commit()
     return {"ok": True}
 
 
-# --- Admin + SA: รับรถเข้าซ่อม ---
+# --- Admin + SA: รับรถเข้าซ่อม / เพิ่มงานซ่อม ---
 
 
 @app.post("/intake", response_model=schemas.VehicleRead)
 def create_intake(
     payload: schemas.IntakeCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("sa")),
+    current_user: User = Depends(require_roles("sa")),
 ):
     vehicle = db.query(Vehicle).filter(Vehicle.vin == payload.vehicle.vin).first()
 
@@ -426,6 +574,15 @@ def create_intake(
         RepairItem(repair_order=order, **item_data.model_dump())
 
     db.add(order)
+    db.flush()
+    log_action(
+        db,
+        current_user,
+        "create_intake",
+        "vehicle",
+        vehicle.id,
+        f"{vehicle.license_plate} · order#{order.id}",
+    )
     db.commit()
     db.refresh(vehicle)
     return vehicle
@@ -436,7 +593,7 @@ def create_repair_order(
     vehicle_id: int,
     payload: schemas.RepairOrderCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("sa")),
+    current_user: User = Depends(require_roles("sa")),
 ):
     vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
     if vehicle is None:
@@ -455,6 +612,15 @@ def create_repair_order(
         RepairItem(repair_order=order, **item_data.model_dump())
 
     db.add(order)
+    db.flush()
+    log_action(
+        db,
+        current_user,
+        "create_repair_order",
+        "repair_order",
+        order.id,
+        vehicle.license_plate,
+    )
     db.commit()
     db.refresh(vehicle)
     return vehicle
@@ -468,7 +634,7 @@ def close_repair_order(
     order_id: int,
     payload: schemas.CloseOrderRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("sa")),
+    current_user: User = Depends(require_roles("sa")),
 ):
     order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
     if order is None:
@@ -480,6 +646,14 @@ def close_repair_order(
 
     order.job_card_number = job_card_number
     order.status = "closed"
+    log_action(
+        db,
+        current_user,
+        "close_repair_order",
+        "repair_order",
+        order.id,
+        f"job_card_number={job_card_number}",
+    )
     db.commit()
 
     vehicle = order.vehicle
@@ -489,13 +663,16 @@ def close_repair_order(
 
 @app.post("/repair-orders/{order_id}/cancel", response_model=schemas.VehicleRead)
 def cancel_repair_order(
-    order_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles("sa"))
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("sa")),
 ):
     order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
     if order is None:
         raise HTTPException(status_code=404, detail="Repair order not found")
 
     order.status = "cancelled"
+    log_action(db, current_user, "cancel_repair_order", "repair_order", order.id)
     db.commit()
 
     vehicle = order.vehicle
@@ -508,7 +685,7 @@ def update_repair_order(
     order_id: int,
     payload: schemas.RepairOrderUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("sa")),
+    current_user: User = Depends(require_roles("sa")),
 ):
     order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
     if order is None:
@@ -516,9 +693,54 @@ def update_repair_order(
     if order.status != "open":
         raise HTTPException(status_code=400, detail="แก้ไขได้เฉพาะงานที่ยังเปิดอยู่")
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(order, field, value)
 
+    log_action(
+        db,
+        current_user,
+        "update_repair_order",
+        "repair_order",
+        order.id,
+        f"fields: {', '.join(changed_fields)}",
+    )
+    db.commit()
+    vehicle = order.vehicle
+    db.refresh(vehicle)
+    return vehicle
+
+
+@app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
+async def upload_order_photo(
+    order_id: int,
+    kind: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("sa")),
+):
+    if kind not in ALLOWED_PHOTO_KINDS:
+        raise HTTPException(
+            status_code=400, detail="ประเภทรูปไม่ถูกต้อง (ใช้ได้แค่ car หรือ vin)"
+        )
+
+    order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Repair order not found")
+
+    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
+    filename = f"order{order_id}_{kind}_{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join("uploads", filename)
+    with open(filepath, "wb") as out_file:
+        out_file.write(await file.read())
+
+    photo_url = f"/uploads/{filename}"
+    if kind == "car":
+        order.car_photo_path = photo_url
+    else:
+        order.vin_photo_path = photo_url
+
+    log_action(db, current_user, "upload_photo", "repair_order", order.id, kind)
     db.commit()
     vehicle = order.vehicle
     db.refresh(vehicle)
@@ -541,15 +763,12 @@ async def import_preview(
 def import_commit(
     payload: schemas.ImportCommitRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles()),
+    current_user: User = Depends(require_roles()),
 ):
     imported = 0
     skipped = 0
-
     duplicates = 0
 
-    # สแนปช็อตข้อมูลที่มีอยู่แล้ว "ก่อน" เริ่มนำเข้าไฟล์นี้ — เช็คซ้ำกับชุดนี้เท่านั้น
-    # ไม่เอาไปเทียบกับแถวที่เพิ่งสร้างขึ้นเองในลูปนี้ (กันเข้าใจผิดว่าแถวคล้ายกันในไฟล์เดียวกันคือของซ้ำ)
     existing_signatures = set(
         db.query(
             RepairOrder.vehicle_id, RepairOrder.open_date, RepairOrder.diagnosis_result
@@ -572,6 +791,7 @@ def import_commit(
             if signature in existing_signatures:
                 duplicates += 1
                 continue
+
         if vehicle is None:
             vehicle = Vehicle(
                 vin=row.vin,
@@ -618,43 +838,14 @@ def import_commit(
         db.add(order)
         imported += 1
 
+    log_action(
+        db,
+        current_user,
+        "import_excel",
+        details=f"imported={imported}, skipped={skipped}, duplicates={duplicates}",
+    )
     db.commit()
     return {"imported": imported, "skipped": skipped, "duplicates": duplicates}
-
-
-@app.post("/repair-orders/{order_id}/photo/{kind}", response_model=schemas.VehicleRead)
-async def upload_order_photo(
-    order_id: int,
-    kind: str,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    _: User = Depends(require_roles("sa")),
-):
-    if kind not in ALLOWED_PHOTO_KINDS:
-        raise HTTPException(
-            status_code=400, detail="ประเภทรูปไม่ถูกต้อง (ใช้ได้แค่ car หรือ vin)"
-        )
-
-    order = db.query(RepairOrder).filter(RepairOrder.id == order_id).first()
-    if order is None:
-        raise HTTPException(status_code=404, detail="Repair order not found")
-
-    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
-    filename = f"order{order_id}_{kind}_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join("uploads", filename)
-    with open(filepath, "wb") as out_file:
-        out_file.write(await file.read())
-
-    photo_url = f"/uploads/{filename}"
-    if kind == "car":
-        order.car_photo_path = photo_url
-    else:
-        order.vin_photo_path = photo_url
-
-    db.commit()
-    vehicle = order.vehicle
-    db.refresh(vehicle)
-    return vehicle
 
 
 # --- เสิร์ฟหน้าเว็บ React ที่ build แล้ว (ต้องอยู่ล่างสุดของไฟล์เสมอ) ---

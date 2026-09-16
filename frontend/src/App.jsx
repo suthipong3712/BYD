@@ -6,6 +6,8 @@ import LoginPage from "./LoginPage";
 import NewOrderForm from "./NewOrderForm";
 import HistoryPage from "./HistoryPage";
 import ImportPage from "./ImportPage";
+import AuditLogPage from "./AuditLogPage";
+import OverviewPage from "./OverviewPage";
 import { authFetch } from "./api";
 
 const ORDER_STATUS_LABEL = {
@@ -80,7 +82,7 @@ function App() {
     return { token, user: JSON.parse(userRaw) };
   });
 
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("overview");
   const [vehicles, setVehicles] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -248,6 +250,14 @@ function App() {
       setEditingOrderId(null);
       refreshDetail();
     });
+  }
+
+  function updateItemNotes(itemId, notes) {
+    authFetch(`/repair-items/${itemId}/notes`, token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes }),
+    }).then(refreshDetail);
   }
 
   function uploadPhoto(orderId, kind, file) {
@@ -478,7 +488,25 @@ function App() {
 
               return (
                 <tr key={item.id}>
-                  <td>{item.description}</td>
+                  <td>
+                    {item.description}
+                    {canManage && isOpen ? (
+                      <input
+                        className="item-notes-input"
+                        placeholder="+ หมายเหตุ"
+                        defaultValue={item.notes ?? ""}
+                        onBlur={(e) => {
+                          if (e.target.value !== (item.notes ?? "")) {
+                            updateItemNotes(item.id, e.target.value || null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      item.notes && (
+                        <div className="item-notes-text">{item.notes}</div>
+                      )
+                    )}
+                  </td>
                   <td className="part-number">{item.part_number ?? "-"}</td>
                   {order.job_type === "warranty" && (
                     <td>
@@ -607,6 +635,12 @@ function App() {
         </div>
         <div className="app-header__nav">
           <button
+            className={`app-header__nav-btn ${view === "overview" ? "active" : ""}`}
+            onClick={() => setView("overview")}
+          >
+            ภาพรวม
+          </button>
+          <button
             className={`app-header__nav-btn ${view === "dashboard" ? "active" : ""}`}
             onClick={() => setView("dashboard")}
           >
@@ -644,6 +678,14 @@ function App() {
               onClick={() => setView("import")}
             >
               นำเข้าข้อมูล
+            </button>
+          )}
+          {role === "admin" && (
+            <button
+              className={`app-header__nav-btn ${view === "auditlog" ? "active" : ""}`}
+              onClick={() => setView("auditlog")}
+            >
+              Log
             </button>
           )}
         </div>
@@ -690,8 +732,21 @@ function App() {
         />
       )}
 
+      {view === "overview" && (
+        <OverviewPage
+          vehicles={vehicles}
+          onSelectVehicle={(id) => {
+            setSelectedId(id);
+            setView("dashboard");
+          }}
+          onGoToList={() => setView("dashboard")}
+        />
+      )}
       {view === "admin" && role === "admin" && <AdminPanel token={token} />}
       {view === "import" && role === "admin" && <ImportPage token={token} />}
+      {view === "auditlog" && role === "admin" && (
+        <AuditLogPage token={token} />
+      )}
       {view === "intake" && (role === "admin" || role === "sa") && (
         <IntakeForm
           token={token}

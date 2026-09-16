@@ -8,6 +8,7 @@ function emptyItem() {
     part_number: "",
     repair_time_estimate: "",
     technician_id: "",
+    notes: "",
   };
 }
 
@@ -198,6 +199,12 @@ function IntakeForm({ token, onCreated }) {
                 updateItem(index, "repair_time_estimate", e.target.value)
               }
             />
+            <input
+              placeholder="หมายเหตุเพิ่มเติม"
+              value={item.notes ?? ""}
+              onChange={(e) => updateItem(index, "notes", e.target.value)}
+            />
+
             <select
               value={item.technician_id}
               onChange={(e) =>

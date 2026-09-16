@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -41,6 +41,7 @@ class RepairItemRead(BaseModel):
     repair_time_estimate: Optional[str] = None
     job_status: str
     claim_status: Optional[str] = None
+    notes: Optional[str] = None
     technician: Optional[TechnicianRead] = None
     parts_request: Optional[PartsRequestRead] = None
 
@@ -80,6 +81,10 @@ class JobStatusUpdate(BaseModel):
 
 class ClaimStatusUpdate(BaseModel):
     claim_status: str
+
+
+class ItemNotesUpdate(BaseModel):
+    notes: Optional[str] = None
 
 
 class PartsStatusUpdate(BaseModel):
@@ -134,7 +139,6 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     active: Optional[bool] = None
     password: Optional[str] = None
-    
 
 
 class ImportRowPreview(BaseModel):
@@ -186,6 +190,18 @@ class VehicleModelReorder(BaseModel):
     ordered_ids: list[int]
 
 
+class AuditLogRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    action: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    details: Optional[str] = None
+    created_at: datetime
+
+
 class VehicleCreate(BaseModel):
     vin: str
     license_plate: str
@@ -200,6 +216,7 @@ class RepairItemCreate(BaseModel):
     part_number: Optional[str] = None
     repair_time_estimate: Optional[str] = None
     technician_id: Optional[int] = None
+    notes: Optional[str] = None
 
 
 class RepairOrderCreate(BaseModel):

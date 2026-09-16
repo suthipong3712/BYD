@@ -1359,3 +1359,73 @@ button:hover {
   color: var(--color-text-muted);
   margin-top: 0.3rem;
 }
+
+
+.overview-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 3rem;
+}
+
+.overview-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.overview-page__header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.overview-stat--warn .stat-box__value {
+  color: var(--status-red-text);
+}
+
+.overview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overview-list__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+}
+
+.overview-list__row:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-2);
+}
+
+
+.item-notes-input {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  font-size: 0.76rem;
+  padding: 0.25rem 0.4rem;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+}
+
+.item-notes-input:focus {
+  background: var(--color-surface-2);
+}
+
+.item-notes-text {
+  margin-top: 0.3rem;
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}

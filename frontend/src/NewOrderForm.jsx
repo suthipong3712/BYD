@@ -8,6 +8,7 @@ function emptyItem() {
     part_number: "",
     repair_time_estimate: "",
     technician_id: "",
+    notes: "",
   };
 }
 
@@ -109,6 +110,12 @@ function NewOrderForm({ token, vehicleId, onCreated, onCancel }) {
                 updateItem(index, "repair_time_estimate", e.target.value)
               }
             />
+            <input
+              placeholder="หมายเหตุเพิ่มเติม"
+              value={item.notes ?? ""}
+              onChange={(e) => updateItem(index, "notes", e.target.value)}
+            />
+
             <select
               value={item.technician_id}
               onChange={(e) =>
