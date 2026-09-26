@@ -109,6 +109,12 @@ class RepairOrder(Base):
     mileage: Mapped[Optional[int]] = mapped_column(nullable=True)
     car_photo_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     vin_photo_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # สถานะติดตามลูกค้า (หน้า CR) — true = โทรติดต่อแล้ว
+    contacted_ready: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
+    contacted_parts: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
+    contacted_appointment: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
+    contacted_claim: Mapped[Optional[bool]] = mapped_column(default=False, nullable=True)
     vehicle: Mapped["Vehicle"] = relationship(back_populates="repair_orders")
     items: Mapped[list["RepairItem"]] = relationship(
         back_populates="repair_order", cascade="all, delete-orphan"

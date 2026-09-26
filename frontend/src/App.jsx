@@ -8,6 +8,8 @@ import HistoryPage from "./HistoryPage";
 import ImportPage from "./ImportPage";
 import AuditLogPage from "./AuditLogPage";
 import OverviewPage from "./OverviewPage";
+import CRPage from "./CRPage";
+import OrderSummaryModal from "./OrderSummaryModal";
 import { authFetch } from "./api";
 
 const ORDER_STATUS_LABEL = {
@@ -101,6 +103,7 @@ function App() {
   const [addingOrder, setAddingOrder] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [toast, setToast] = useState(null);
+  const [summaryOrder, setSummaryOrder] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historySearchVehicle, setHistorySearchVehicle] = useState(null);
@@ -429,6 +432,12 @@ function App() {
           </div>
 
           <div className="repair-order__actions">
+            <button
+              className="btn-close-order"
+              onClick={() => setSummaryOrder(order)}
+            >
+              👁 สรุป
+            </button>
             <Badge color={ORDER_STATUS_COLOR[order.status]}>
               {ORDER_STATUS_LABEL[order.status]}
             </Badge>
@@ -664,6 +673,14 @@ function App() {
           </button>
           {(role === "admin" || role === "sa") && (
             <button
+              className={`app-header__nav-btn ${view === "cr" ? "active" : ""}`}
+              onClick={() => setView("cr")}
+            >
+              งาน CR
+            </button>
+          )}
+          {(role === "admin" || role === "sa") && (
+            <button
               className={`app-header__nav-btn ${view === "intake" ? "active" : ""}`}
               onClick={() => setView("intake")}
             >
@@ -746,6 +763,17 @@ function App() {
             setView("dashboard");
           }}
           onGoToList={() => setView("dashboard")}
+        />
+      )}
+      {view === "cr" && (role === "admin" || role === "sa") && (
+        <CRPage
+          vehicles={vehicles}
+          token={token}
+          onSelectVehicle={(id) => {
+            setSelectedId(id);
+            setView("dashboard");
+          }}
+          onRefresh={refreshVehicleList}
         />
       )}
       {view === "admin" && role === "admin" && <AdminPanel token={token} />}
@@ -1072,6 +1100,15 @@ function App() {
       )}
 
       {toast && <div className="admin-toast">✓ {toast}</div>}
+
+      {summaryOrder !== null && (
+        <OrderSummaryModal
+          order={summaryOrder}
+          vehicle={detail}
+          optionMeta={optionMeta}
+          onClose={() => setSummaryOrder(null)}
+        />
+      )}
 
       {lightboxSrc !== null && (
         <div className="lightbox" onClick={() => setLightboxSrc(null)}>

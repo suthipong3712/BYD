@@ -60,6 +60,10 @@ class RepairOrderRead(BaseModel):
     mileage: Optional[int] = None
     car_photo_path: Optional[str] = None
     vin_photo_path: Optional[str] = None
+    contacted_ready: Optional[bool] = None
+    contacted_parts: Optional[bool] = None
+    contacted_appointment: Optional[bool] = None
+    contacted_claim: Optional[bool] = None
     items: list[RepairItemRead] = []
 
 
@@ -123,6 +127,10 @@ class RepairOrderUpdate(BaseModel):
     job_card_number: Optional[str] = None
     mileage: Optional[int] = None
     appointment_date: Optional[date] = None
+    contacted_ready: Optional[bool] = None
+    contacted_parts: Optional[bool] = None
+    contacted_appointment: Optional[bool] = None
+    contacted_claim: Optional[bool] = None
 
 
 class CloseOrderRequest(BaseModel):
