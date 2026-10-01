@@ -10,6 +10,7 @@ import AuditLogPage from "./AuditLogPage";
 import OverviewPage from "./OverviewPage";
 import CRPage from "./CRPage";
 import OrderSummaryModal from "./OrderSummaryModal";
+import QRModal from "./QRModal";
 import { authFetch } from "./api";
 
 const ORDER_STATUS_LABEL = {
@@ -104,6 +105,7 @@ function App() {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [toast, setToast] = useState(null);
   const [summaryOrder, setSummaryOrder] = useState(null);
+  const [qrVehicle, setQrVehicle] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historySearchVehicle, setHistorySearchVehicle] = useState(null);
@@ -300,6 +302,23 @@ function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!auth || vehicles.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const lookupVin = params.get("lookup");
+    if (!lookupVin) return;
+
+    const found = vehicles.find((v) => v.vin === lookupVin);
+    if (found) {
+      setHistorySearchVehicle(found);
+      setView("historySearch");
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("lookup");
+    window.history.replaceState({}, "", url);
+  }, [vehicles, auth]);
 
   if (!auth) {
     return <LoginPage onLogin={handleLogin} />;
@@ -1013,6 +1032,12 @@ function App() {
                 <div className="action-row">
                   <button
                     className="btn-view-history"
+                    onClick={() => setQrVehicle(detail)}
+                  >
+                    📱 QR Code
+                  </button>
+                  <button
+                    className="btn-view-history"
                     onClick={() => setView("history")}
                   >
                     ดูประวัติทั้งหมดแบบเต็ม →
@@ -1108,6 +1133,10 @@ function App() {
           optionMeta={optionMeta}
           onClose={() => setSummaryOrder(null)}
         />
+      )}
+
+      {qrVehicle !== null && (
+        <QRModal vehicle={qrVehicle} onClose={() => setQrVehicle(null)} />
       )}
 
       {lightboxSrc !== null && (

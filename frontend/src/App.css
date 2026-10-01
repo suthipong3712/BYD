@@ -1591,3 +1591,40 @@ button:hover {
   color: var(--color-text-muted);
   margin: 1rem 0 0.75rem;
 }
+
+
+.qr-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  width: 340px;
+  max-width: 90vw;
+  padding: 1.75rem;
+  text-align: center;
+}
+
+.qr-modal h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.qr-modal__image {
+  display: block;
+  margin: 1.25rem auto;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.qr-modal__download {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 0.6rem;
+}
+
+.qr-modal__close {
+  width: 100%;
+}
